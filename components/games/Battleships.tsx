@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
+  SHIPS,
   TURN_MS,
   fire,
+  isSunk,
   newGame,
   randomFleet,
   setReady,
@@ -12,10 +14,48 @@ import {
   type Battleship,
   type Fleet,
 } from "@/lib/battleship.ts";
-import ShipBoard from "./ShipBoard";
+import ShipBoard, { FLIGHT } from "./ShipBoard";
 import type { GameProps } from "@/lib/useRoom";
 
-export default function Battleships({ code, slot }: GameProps) {
+/** What one board says about the shots taken at it. */
+function report(fleet: Fleet) {
+  const hits = fleet.shots.filter((c) => fleet.ships.some((s) => s.includes(c))).length;
+  const sunk = fleet.ships.filter((s) => isSunk(fleet, s)).length;
+  return {
+    shots: fleet.shots.length,
+    hits,
+    misses: fleet.shots.length - hits,
+    accuracy: fleet.shots.length ? Math.round((hits / fleet.shots.length) * 100) : 0,
+    sunk,
+    afloat: fleet.ships.length - sunk,
+    /** Ships still afloat, longest first — what is left to hunt. */
+    remaining: fleet.ships.filter((s) => !isSunk(fleet, s)).map((s) => s.length).sort((a, b) => b - a),
+  };
+}
+
+function Panel({ label, data }: { label: string; data: ReturnType<typeof report> }) {
+  return (
+    <dl className="cab grid w-full max-w-[340px] grid-cols-2 gap-x-3 gap-y-1 rounded-md px-3 py-2 text-xs">
+      <dt className="col-span-2 pixel text-[0.55rem] text-zinc-500">{label}</dt>
+      <dt className="text-zinc-500">Shots</dt>
+      <dd className="text-right text-zinc-200">{data.shots}</dd>
+      <dt className="text-zinc-500">Hits / misses</dt>
+      <dd className="text-right text-zinc-200">
+        {data.hits} / {data.misses}
+      </dd>
+      <dt className="text-zinc-500">Accuracy</dt>
+      <dd className="text-right text-zinc-200">{data.accuracy}%</dd>
+      <dt className="text-zinc-500">Fleet afloat</dt>
+      <dd className="text-right text-zinc-200">
+        {data.afloat}/{data.afloat + data.sunk}
+      </dd>
+      <dt className="text-zinc-500">Still hunting</dt>
+      <dd className="text-right text-zinc-200">{data.remaining.join(", ") || "—"}</dd>
+    </dl>
+  );
+}
+
+export default function Battleships({ code, slot, players }: GameProps) {
   const [game, setGame] = useState<Battleship | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -84,6 +124,10 @@ export default function Battleships({ code, slot }: GameProps) {
   const bothReady = game.ready[0] && game.ready[1];
   const myTurn = bothReady && game.turn === slot && !game.winner;
   const left = Math.max(0, Math.min(TURN_MS, game.deadline - now));
+  // Shots at the enemy board are mine; shots at my board are theirs.
+  const attack = report(enemy);
+  const defence = report(mine);
+  const names = [players[0]?.name ?? "Player 1", players[1]?.name ?? "Player 2"];
 
   const setMyFleet = (fleet: Fleet) => {
     const fleets: [Fleet, Fleet] = slot === 1 ? [fleet, game.fleets[1]] : [game.fleets[0], fleet];
@@ -97,6 +141,10 @@ export default function Battleships({ code, slot }: GameProps) {
           Your fleet. Reroll until you like it, then lock it in.
         </p>
         <ShipBoard fleet={mine} size={game.size} showShips />
+        <p className="text-xs text-zinc-500">
+          {SHIPS.length} ships · lengths {SHIPS.join(", ")} · {game.size}×{game.size} sea ·{" "}
+          {TURN_MS / 1000}s shot clock
+        </p>
         <div className="flex items-center gap-3 text-sm">
           {iAmReady ? (
             <span className="text-emerald-400">Locked in. Waiting for the other admiral…</span>
@@ -163,14 +211,24 @@ export default function Battleships({ code, slot }: GameProps) {
 
       <div className="flex w-full flex-wrap justify-center gap-4 sm:gap-8">
         <div className="flex flex-col items-center gap-2">
-          <h3 className="text-xs uppercase tracking-wide text-zinc-500">Your waters</h3>
-          {/* Remounting on each incoming shot is what replays the shake. */}
-          <div key={mine.shots.length} className={mine.shots.length ? "shake" : undefined}>
+          <h3 className="text-xs uppercase tracking-wide text-zinc-500">
+            Your waters · {names[slot - 1]}
+          </h3>
+          {/* Remounting on each incoming shot is what replays the shake — held
+              back until the missile actually lands. */}
+          <div
+            key={mine.shots.length}
+            className={mine.shots.length ? "shake" : undefined}
+            style={{ "--delay": `${FLIGHT}ms` } as React.CSSProperties}
+          >
             <ShipBoard fleet={mine} size={game.size} showShips />
           </div>
+          <Panel label="Incoming" data={defence} />
         </div>
         <div className="flex flex-col items-center gap-2">
-          <h3 className="text-xs uppercase tracking-wide text-zinc-500">Enemy waters</h3>
+          <h3 className="text-xs uppercase tracking-wide text-zinc-500">
+            Enemy waters · {names[slot === 1 ? 1 : 0]}
+          </h3>
           <div className={`transition-opacity ${myTurn ? "" : "opacity-60"}`}>
             <ShipBoard
               fleet={enemy}
@@ -179,8 +237,14 @@ export default function Battleships({ code, slot }: GameProps) {
               onFire={myTurn ? (i) => write(fire(game, i, slot)) : undefined}
             />
           </div>
+          <Panel label="Your fire" data={attack} />
         </div>
       </div>
+
+      <p className="text-center text-xs text-zinc-600">
+        A hit buys another shot. Miss, or let the {TURN_MS / 1000}s clock run out, and the turn
+        passes.
+      </p>
 
       {slot === 1 && (
         <button

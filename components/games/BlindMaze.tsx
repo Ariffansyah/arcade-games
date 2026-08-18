@@ -19,8 +19,12 @@ const SIZES = [
 
 const secs = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 
-export default function BlindMaze({ code, slot }: GameProps) {
-  const driver = slot === 1;
+/** The runner's Run, plus who is holding the controls. Both travel together so
+ *  a client that joins late learns the seating from the next move. */
+type Sync = { run: Run; driver: string };
+
+export default function BlindMaze({ code, players, me }: GameProps) {
+  const [driverId, setDriverId] = useState<string | null>(null);
   const [run, setRun] = useState<Run>(() => newRun(13));
   const [synced, setSynced] = useState(false);
   const [best, setBest] = useState<number | null>(null);
@@ -37,15 +41,25 @@ export default function BlindMaze({ code, slot }: GameProps) {
     [run.seed, run.size]
   );
 
-  const send = useBroadcast<Run>(`maze:${code}`, "move", (payload) => {
+  const send = useBroadcast<Sync>(`maze:${code}`, "move", (payload) => {
     setSynced(true);
-    setRun(payload);
-    if (payload.finishedAt) recordBest(payload);
+    setRun(payload.run);
+    setDriverId(payload.driver);
+    if (payload.run.finishedAt) recordBest(payload.run);
   });
 
+  // Nobody picked yet, so the first player in the room takes the controls.
+  const wheel = driverId ?? players[0]?.id ?? "";
+  const driver = wheel === me.id;
+
   useEffect(() => {
-    if (driver) send(run);
-  }, [driver, run, send]);
+    if (driver) send({ run, driver: wheel });
+  }, [driver, run, wheel, send]);
+
+  const handOver = (id: string) => {
+    setDriverId(id);
+    send({ run, driver: id });
+  };
 
   useEffect(() => {
     if (run.finishedAt) return;
@@ -76,17 +90,39 @@ export default function BlindMaze({ code, slot }: GameProps) {
   }, [driver, move]);
 
   if (!driver && !synced)
-    return <p className="text-zinc-500">Waiting for Player 1 to enter the maze…</p>;
+    return <p className="text-zinc-500">Waiting for the runner to enter the maze…</p>;
 
   const elapsed = (run.finishedAt || now) - run.startedAt;
+  const runner = players.find((p) => p.id === wheel)?.name ?? "the runner";
+  const guides = players.filter((p) => p.id !== wheel).map((p) => p.name).join(", ");
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <p className="text-sm text-zinc-400">
+      <p className="text-center text-sm text-zinc-400">
         {driver
-          ? "You are blind. Arrows, WASD or the on-screen pad. Listen to Player 2."
-          : "You see everything, you control nothing. Talk Player 1 to the exit."}
+          ? `You are blind. Arrows, WASD or the on-screen pad. Listen to ${guides || "the room"}.`
+          : `You see everything, you control nothing. Talk ${runner} to the exit.`}
       </p>
+      <p className="text-center text-xs text-zinc-600">
+        Walls stop you, traps throw you back to the start, the green tile is the way out.
+      </p>
+
+      {/* Anyone can hand the controls to anyone — including themselves. */}
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <span className="pixel text-[0.55rem] text-zinc-500">At the controls</span>
+        {players.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => handOver(p.id)}
+            className={`cab rounded-md px-3 py-1.5 text-sm ${
+              p.id === wheel ? "cab-hot neon-green" : "text-zinc-400"
+            }`}
+          >
+            {p.name}
+            {p.id === me.id && " (you)"}
+          </button>
+        ))}
+      </div>
 
       {/* Remounting on each trap springs the shake again. */}
       <div key={run.traps} className={run.traps ? "shake" : undefined}>
@@ -131,6 +167,10 @@ export default function BlindMaze({ code, slot }: GameProps) {
         {best !== null && <span>Best {secs(best)}</span>}
         <span>Traps {run.traps}</span>
         <span>Bumps {run.bumps}</span>
+        <span>
+          {run.size}×{run.size}
+        </span>
+        <span>{Math.max(0, players.length - 1)} guiding</span>
         {run.finishedAt > 0 && <span className="flash-win font-medium text-emerald-400">Escaped!</span>}
       </div>
 

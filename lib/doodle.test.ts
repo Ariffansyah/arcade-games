@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { WORDS, extractPaths, isCorrect } from "./doodle.ts";
+import { WORDS, extractPaths, isClose, isCorrect } from "./doodle.ts";
 
 test("keeps real path data", () => {
   const reply = `Here you go:
@@ -43,4 +43,13 @@ test("ignores geometry drafted inside a think block", () => {
   // Truncated reasoning: nothing after it, so nothing is a real drawing.
   const cut = `<think>drafting <path d="M0,0 L9,9"/> and then the tokens ran`;
   assert.deepEqual(extractPaths(cut), []);
+});
+
+test("a near miss is close, a different word is not", () => {
+  assert.equal(isClose("elephent", "elephant"), true);
+  assert.equal(isClose("hourglas", "hourglass"), true);
+  assert.equal(isClose("cot", "cat"), true);
+  assert.equal(isClose("cat", "cat"), false); // that one is just correct
+  assert.equal(isClose("dog", "cat"), false);
+  assert.equal(isClose("", "cat"), false);
 });

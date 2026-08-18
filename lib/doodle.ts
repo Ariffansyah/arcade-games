@@ -45,3 +45,31 @@ const normalise = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "").replace(
 
 /** Plurals and stray punctuation shouldn't cost anyone the round. */
 export const isCorrect = (guess: string, word: string) => normalise(guess) === normalise(word);
+
+/** Levenshtein, two rows deep — the words here are never long enough to need more. */
+function distance(a: string, b: string) {
+  let row = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const next = [i];
+    for (let j = 1; j <= b.length; j++) {
+      next[j] = Math.min(
+        row[j] + 1,
+        next[j - 1] + 1,
+        row[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+    row = next;
+  }
+  return row[b.length];
+}
+
+/**
+ * A near miss worth telling the guesser about: a typo or one wrong ending, not
+ * a different animal. Short words get one edit, longer ones two.
+ */
+export function isClose(guess: string, word: string) {
+  const a = normalise(guess);
+  const b = normalise(word);
+  if (!a || a === b) return false;
+  return distance(a, b) <= (b.length <= 5 ? 1 : 2);
+}

@@ -16,7 +16,7 @@ const vt323 = VT323({
 
 export const metadata: Metadata = {
   title: "Web Arcade",
-  description: "Two-player co-op mini-games over a 4-digit room code.",
+  description: "Party mini-games for two players or a roomful, over a 4-digit room code.",
 };
 
 export const viewport: Viewport = {

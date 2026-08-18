@@ -3,6 +3,8 @@
 import { hullBox, isSunk, shipAt, type Fleet } from "@/lib/battleship.ts";
 
 const CELL = 34;
+/** How long a missile is in the air. Impact effects wait this long. */
+export const FLIGHT = 600;
 const PAD = 14; // gutter for the A-H / 1-8 labels
 const LETTERS = "ABCDEFGHIJ";
 
@@ -22,6 +24,49 @@ function Hull({ cells, size, sunk }: { cells: number[]; size: number; sunk: bool
   );
 }
 
+/**
+ * A missile in flight. The art is centred on its own origin so `fill-box`
+ * rotation lands the nose exactly on the target point.
+ */
+function Missile({
+  x0,
+  y0,
+  x1,
+  y1,
+}: {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}) {
+  const rot = (Math.atan2(y1 - y0, x1 - x0) * 180) / Math.PI;
+
+  return (
+    <g
+      className="rocket"
+      style={
+        {
+          "--x0": `${x0}px`,
+          "--y0": `${y0}px`,
+          "--x1": `${x1}px`,
+          "--y1": `${y1}px`,
+          "--rot": `${rot}deg`,
+          "--flight": `${FLIGHT}ms`,
+        } as React.CSSProperties
+      }
+    >
+      <path className="rocket-flame" d="M-3.5,-4 L-16.5,0 L-3.5,4 Z" fill="#ffc83d" />
+      <path
+        d="M-3.5,-4 L9.5,-4 L16.5,0 L9.5,4 L-3.5,4 Z"
+        fill="#e4e4e7"
+        stroke="#52525b"
+        strokeWidth={1}
+      />
+      <path d="M-3.5,-4 L-7.5,-8 L-0.5,-4 Z M-3.5,4 L-7.5,8 L-0.5,4 Z" fill="#ff2d95" />
+    </g>
+  );
+}
+
 export default function ShipBoard({
   fleet,
   size,
@@ -35,6 +80,8 @@ export default function ShipBoard({
 }) {
   const dim = size * CELL;
   const newest = fleet.shots.at(-1);
+  const delay = { "--delay": `${FLIGHT}ms` } as React.CSSProperties;
+  // Nothing launches on mount — only a salvo fired while you are watching.
   const centre = (cell: number) => ({
     cx: (cell % size) * CELL + CELL / 2,
     cy: ((cell / size) | 0) * CELL + CELL / 2,
@@ -99,22 +146,53 @@ export default function ShipBoard({
         const { cx, cy } = centre(cell);
         const fresh = cell === newest;
         return shipAt(fleet, cell) ? (
-          <g key={cell} transform={`translate(${cx}, ${cy})`} className={fresh ? "burst" : undefined}>
-            <polygon
-              points="0,-11 3,-4 10,-6 5,0 10,6 3,4 0,11 -3,4 -10,6 -5,0 -10,-6 -3,-4"
-              fill="#ff2d95"
-            />
-            <circle r={4} fill="#ffc83d" />
+          // The burst animation sets a CSS transform, which would replace the
+          // translate attribute and park the marker in the corner — so the
+          // placement and the animation live on separate groups.
+          <g key={cell} transform={`translate(${cx}, ${cy})`}>
+            <g className={fresh ? "burst" : undefined} style={fresh ? delay : undefined}>
+              <polygon
+                points="0,-11 3,-4 10,-6 5,0 10,6 3,4 0,11 -3,4 -10,6 -5,0 -10,-6 -3,-4"
+                fill="#ff2d95"
+              />
+              <circle r={4} fill="#ffc83d" />
+            </g>
           </g>
         ) : (
           <g key={cell}>
-            <circle cx={cx} cy={cy} r={3} fill="#22d3ee" opacity={0.8} />
+            <circle
+              className={fresh ? "on-impact" : undefined}
+              style={fresh ? delay : undefined}
+              cx={cx}
+              cy={cy}
+              r={3}
+              fill="#22d3ee"
+              opacity={0.8}
+            />
             {fresh && (
-              <circle className="splash-ring" cx={cx} cy={cy} r={2} fill="none" stroke="#e0f2fe" />
+              <circle
+                className="splash-ring"
+                style={delay}
+                cx={cx}
+                cy={cy}
+                r={2}
+                fill="none"
+                stroke="#e0f2fe"
+              />
             )}
           </g>
         );
       })}
+
+      {/* Keyed on the shot: a new one remounts the missile and replays the flight. */}
+      {newest !== undefined && (
+        <Missile
+          key={`in-${newest}`}
+          x0={dim / 2}
+          y0={dim + 40}
+          {...{ x1: centre(newest).cx, y1: centre(newest).cy }}
+        />
+      )}
 
       {onFire &&
         Array.from({ length: size * size }, (_, i) =>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { isCorrect } from "@/lib/doodle.ts";
+import { isClose, isCorrect } from "@/lib/doodle.ts";
 import { useBroadcast } from "@/lib/useBroadcast";
 import type { GameProps } from "@/lib/useRoom";
 
@@ -12,28 +12,58 @@ type Doodle = {
   word: string;
   paths: string[];
   startedAt: number;
-  solvedBy: 0 | 1 | 2;
+  /** Player id of whoever got it, "" while the round is live. */
+  solvedBy: string;
+  solvedName: string;
   solvedAt: number;
+  /** Player ids that voted to give up. Nobody ends the round alone. */
+  giveUp: string[];
   gaveUp: boolean;
+  /** Rounds solved by the room, and by each player. */
   score: number;
+  scores: Record<string, number>;
 };
 
-type Guess = { slot: number; text: string; correct: boolean };
+type Guess = { id: string; name: string; text: string; correct: boolean; close: boolean };
+
+/** Blanks now, first letter at 40s, last letter at 70s. */
+const HINTS = [40_000, 70_000];
 
 const secs = (ms: number) => `${Math.floor(ms / 1000)}s`;
 
-export default function DoodleGuess({ code, slot }: GameProps) {
+function blanks(word: string, age: number) {
+  return [...word]
+    .map((ch, i) => {
+      if (ch === " ") return " ";
+      if (i === 0 && age > HINTS[0]) return ch.toUpperCase();
+      if (i === word.length - 1 && age > HINTS[1]) return ch.toUpperCase();
+      return "_";
+    })
+    .join(" ");
+}
+
+export default function DoodleGuess({ code, players, me }: GameProps) {
   const [round, setRound] = useState<Doodle | null>(null);
   const [guesses, setGuesses] = useState<Guess[]>([]);
   const [text, setText] = useState("");
   const [drawing, setDrawing] = useState(false);
   const [error, setError] = useState("");
+  const [best, setBest] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const log = useRef<HTMLDivElement>(null);
+
+  const host = players[0];
+  const isHost = host?.id === me.id;
+
+  /** Fastest solve this session — tracked wherever a finished round arrives. */
+  const noteSolve = useCallback((d: Doodle) => {
+    if (d.solvedAt) setBest((b) => Math.min(b ?? Infinity, d.solvedAt - d.startedAt));
+  }, []);
 
   const write = useCallback(
     async (next: Doodle) => {
       setRound(next); // optimistic; Postgres Changes echoes the same row back
+      noteSolve(next);
       await supabase.from("game_state").upsert({
         room_code: code,
         game: "doodle",
@@ -41,7 +71,7 @@ export default function DoodleGuess({ code, slot }: GameProps) {
         updated_at: new Date().toISOString(),
       });
     },
-    [code]
+    [code, noteSolve]
   );
 
   useEffect(() => {
@@ -52,6 +82,7 @@ export default function DoodleGuess({ code, slot }: GameProps) {
         { event: "*", schema: "public", table: "game_state", filter: `room_code=eq.${code}` },
         (payload) => {
           const next = (payload.new as { state: Doodle }).state;
+          noteSolve(next);
           setRound((prev) => {
             if (prev && next.round !== prev.round) setGuesses([]); // new drawing, fresh chat
             return next;
@@ -62,7 +93,7 @@ export default function DoodleGuess({ code, slot }: GameProps) {
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [code]);
+  }, [code, noteSolve]);
 
   useEffect(() => {
     let live = true;
@@ -80,10 +111,15 @@ export default function DoodleGuess({ code, slot }: GameProps) {
   }, [code]);
 
   const send = useBroadcast<Guess>(`doodle:${code}`, "guess", (payload) =>
-    setGuesses((g) => [...g, payload].slice(-40))
+    setGuesses((g) => [...g, payload].slice(-60))
   );
 
-  const over = !!round && (round.solvedBy > 0 || round.gaveUp);
+  const over = !!round && (!!round.solvedBy || round.gaveUp);
+  const age = round ? (round.solvedAt || (over ? round.startedAt : now)) - round.startedAt : 0;
+  const live = round && !over ? now - round.startedAt : age;
+  // Everyone in the room has to agree to quit.
+  const quitters = round?.giveUp ?? [];
+  const scores = round?.scores ?? {};
 
   useEffect(() => {
     if (!round || over) return;
@@ -108,10 +144,13 @@ export default function DoodleGuess({ code, slot }: GameProps) {
         word: body.word,
         paths: body.paths,
         startedAt: Date.now(),
-        solvedBy: 0,
+        solvedBy: "",
+        solvedName: "",
         solvedAt: 0,
+        giveUp: [],
         gaveUp: false,
         score: round?.score ?? 0,
+        scores,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Drawing failed.");
@@ -122,25 +161,60 @@ export default function DoodleGuess({ code, slot }: GameProps) {
 
   const guess = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!round || over || !slot || !text.trim()) return;
-    const entry: Guess = { slot, text: text.trim(), correct: isCorrect(text, round.word) };
-    setGuesses((g) => [...g, entry].slice(-40));
+    if (!round || over || !text.trim()) return;
+    const entry: Guess = {
+      id: me.id,
+      name: me.name,
+      text: text.trim(),
+      correct: isCorrect(text, round.word),
+      close: isClose(text, round.word),
+    };
+    setGuesses((g) => [...g, entry].slice(-60));
     send(entry);
     setText("");
     if (entry.correct)
-      write({ ...round, solvedBy: slot, solvedAt: Date.now(), score: round.score + 1 });
+      write({
+        ...round,
+        solvedBy: me.id,
+        solvedName: me.name,
+        solvedAt: Date.now(),
+        score: round.score + 1,
+        scores: { ...scores, [me.id]: (scores[me.id] ?? 0) + 1 },
+      });
   };
+
+  const voteGiveUp = () => {
+    if (!round || over || quitters.includes(me.id)) return;
+    const next = [...quitters, me.id];
+    write({ ...round, giveUp: next, gaveUp: next.length >= players.length });
+  };
+
+  const mine = guesses.filter((g) => g.id === me.id).length;
+  const closeCalls = guesses.filter((g) => g.close && !g.correct).length;
 
   return (
     <div className="flex w-full max-w-3xl flex-col items-center gap-4">
-      <p className="text-sm text-zinc-400">
-        Nobody draws. The machine does — you two work out what it is.
+      <p className="text-center text-sm text-zinc-400">
+        Nobody draws. The machine does — the whole room races to name it.
       </p>
 
-      <svg
-        viewBox="0 0 400 300"
-        className="cab w-full max-w-xl rounded-md"
-      >
+      {/* Scoreboard: everyone in the room, with their solve count. */}
+      <ul className="flex flex-wrap justify-center gap-2">
+        {players.map((p) => (
+          <li
+            key={p.id}
+            className={`cab rounded-md px-3 py-1.5 text-sm ${p.id === me.id ? "cab-hot" : ""} ${
+              round?.solvedBy === p.id ? "flash-win" : ""
+            }`}
+          >
+            <span className="text-zinc-200">{p.name}</span>{" "}
+            <span className="neon-green">{scores[p.id] ?? 0}</span>
+            {quitters.includes(p.id) && !over && <span className="text-red-400"> ✕</span>}
+          </li>
+        ))}
+      </ul>
+
+      <svg viewBox="0 0 400 300" className="cab w-full max-w-xl rounded-md">
         {round?.paths.map((d, i) => (
           <path
             key={`${round.round}-${i}`}
@@ -161,15 +235,33 @@ export default function DoodleGuess({ code, slot }: GameProps) {
         )}
       </svg>
 
-      <div className="flex flex-wrap items-center justify-center gap-5 text-sm text-zinc-400">
+      {/* Letter count from the start; first and last letter surface as time drags. */}
+      {round && !over && (
+        <p className="pixel text-[0.7rem] tracking-[0.35em] text-zinc-300">
+          {blanks(round.word, live)}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm text-zinc-400">
+        {round && <span>Round {round.round}</span>}
         {round && <span>Solved {round.score}</span>}
-        {round && !over && <span className="font-mono text-zinc-200">{secs(now - round.startedAt)}</span>}
+        {round && !over && <span className="font-mono text-zinc-200">{secs(live)}</span>}
+        {best !== null && <span>Best {secs(best)}</span>}
+        {round && (
+          <span>
+            {guesses.length} guesses · {mine} yours · {closeCalls} close
+          </span>
+        )}
+        <span>{players.length} in the room</span>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
         {round?.solvedBy ? (
           <span className="flash-win font-medium text-emerald-400">
-            Player {round.solvedBy} got it: {round.word} ({secs(round.solvedAt - round.startedAt)})
+            {round.solvedName} got it: {round.word} ({secs(round.solvedAt - round.startedAt)})
           </span>
         ) : round?.gaveUp ? (
-          <span className="text-red-400">It was {round.word}.</span>
+          <span className="text-red-400">Nobody got it. It was {round.word}.</span>
         ) : null}
         {error && <span className="text-red-400">{error}</span>}
       </div>
@@ -178,8 +270,18 @@ export default function DoodleGuess({ code, slot }: GameProps) {
         <div ref={log} className="cab h-24 overflow-y-auto rounded-md p-3 text-sm sm:h-32">
           {guesses.length === 0 && <p className="text-zinc-600">Shout your guesses here.</p>}
           {guesses.map((g, i) => (
-            <p key={i} className={g.correct ? "font-medium text-emerald-400" : "text-zinc-300"}>
-              <span className="text-zinc-500">P{g.slot}</span> {g.text}
+            <p
+              key={i}
+              className={
+                g.correct
+                  ? "font-medium text-emerald-400"
+                  : g.close
+                    ? "text-amber-400"
+                    : "text-zinc-300"
+              }
+            >
+              <span className="text-zinc-500">{g.name}</span> {g.text}
+              {!g.correct && g.close && <span className="text-amber-500"> — so close!</span>}
             </p>
           ))}
         </div>
@@ -188,13 +290,13 @@ export default function DoodleGuess({ code, slot }: GameProps) {
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
-            disabled={!round || over || !slot}
+            disabled={!round || over}
             placeholder={over ? "Round over" : "What is it?"}
             className="cab flex-1 rounded-sm px-3 py-2 font-sans text-base outline-none focus:border-emerald-500 disabled:opacity-50"
           />
           <button
             type="submit"
-            disabled={!round || over || !slot}
+            disabled={!round || over}
             className="btn-arcade rounded-sm px-4 py-2 disabled:opacity-40"
           >
             Guess
@@ -203,7 +305,7 @@ export default function DoodleGuess({ code, slot }: GameProps) {
       </div>
 
       <div className="flex items-center gap-2 text-sm">
-        {slot === 1 && (
+        {isHost ? (
           <button
             onClick={newDrawing}
             disabled={drawing}
@@ -211,13 +313,18 @@ export default function DoodleGuess({ code, slot }: GameProps) {
           >
             {drawing ? "Drawing…" : round ? "New drawing" : "Start"}
           </button>
+        ) : (
+          !round && <span className="blink text-zinc-500">Waiting for {host?.name}…</span>
         )}
         {round && !over && (
           <button
-            onClick={() => write({ ...round, gaveUp: true })}
-            className="btn-ghost btn-danger rounded-sm px-3 py-2"
+            onClick={voteGiveUp}
+            disabled={quitters.includes(me.id)}
+            className="btn-ghost btn-danger rounded-sm px-3 py-2 disabled:opacity-40"
           >
-            Give up
+            {quitters.includes(me.id)
+              ? `Waiting… (${quitters.length}/${players.length})`
+              : `Give up (${quitters.length}/${players.length})`}
           </button>
         )}
       </div>
