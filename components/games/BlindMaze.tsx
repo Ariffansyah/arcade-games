@@ -84,7 +84,7 @@ export default function BlindMaze({ code, slot }: GameProps) {
     <div className="flex flex-col items-center gap-4">
       <p className="text-sm text-zinc-400">
         {driver
-          ? "You are blind. Arrows, WASD or the pad below. Listen to Player 2."
+          ? "You are blind. Arrows, WASD or the on-screen pad. Listen to Player 2."
           : "You see everything, you control nothing. Talk Player 1 to the exit."}
       </p>
 
@@ -93,9 +93,9 @@ export default function BlindMaze({ code, slot }: GameProps) {
         <MazeBoard maze={maze} run={run} blind={driver} />
       </div>
 
-      {/* A phone has no arrow keys — the runner needs a pad to move at all. */}
+      {/* Touch devices have no arrow keys — only they get the pad. */}
       {driver && (
-        <div className="grid w-44 grid-cols-3 gap-1.5">
+        <div className="hidden w-44 grid-cols-3 gap-1.5 pointer-coarse:grid">
           {[
             [null, N, null],
             [W, null, E],
@@ -108,9 +108,18 @@ export default function BlindMaze({ code, slot }: GameProps) {
                 key={i}
                 onClick={() => move(dir)}
                 aria-label={{ [N]: "up", [E]: "right", [S]: "down", [W]: "left" }[dir]}
-                className="h-12 rounded-lg bg-zinc-800 text-lg text-zinc-200 ring-1 ring-zinc-700 active:bg-emerald-700"
+                className="cab flex h-14 items-center justify-center rounded-sm text-emerald-400 active:border-emerald-500 active:text-emerald-300"
               >
-                {{ [N]: "\u2191", [E]: "\u2192", [S]: "\u2193", [W]: "\u2190" }[dir]}
+                {/* One rotated triangle, not four arrow glyphs — the pixel font
+                    only ships some of them, so the fallbacks never matched. */}
+                <svg
+                  viewBox="0 0 10 10"
+                  aria-hidden
+                  className="h-4 w-4"
+                  style={{ transform: `rotate(${{ [N]: 0, [E]: 90, [S]: 180, [W]: 270 }[dir]}deg)` }}
+                >
+                  <polygon points="5,1.5 9,8.5 1,8.5" fill="currentColor" />
+                </svg>
               </button>
             )
           )}
@@ -140,7 +149,7 @@ export default function BlindMaze({ code, slot }: GameProps) {
           ))}
           <button
             onClick={() => setRun(newRun(run.size))}
-            className="rounded bg-emerald-600 px-3 py-1 font-medium text-white"
+            className="btn-arcade rounded-sm px-3 py-2"
           >
             New maze
           </button>

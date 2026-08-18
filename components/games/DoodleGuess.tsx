@@ -139,7 +139,7 @@ export default function DoodleGuess({ code, slot }: GameProps) {
 
       <svg
         viewBox="0 0 400 300"
-        className="w-full max-w-xl rounded-lg bg-zinc-900 ring-1 ring-zinc-800"
+        className="cab w-full max-w-xl rounded-md"
       >
         {round?.paths.map((d, i) => (
           <path
@@ -148,7 +148,7 @@ export default function DoodleGuess({ code, slot }: GameProps) {
             className="draw-path"
             style={{ "--len": "900", animationDelay: `${i * 0.14}s` } as React.CSSProperties}
             fill="none"
-            stroke="#e4e4e7"
+            stroke="#5cff9d"
             strokeWidth={2.5}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -175,7 +175,7 @@ export default function DoodleGuess({ code, slot }: GameProps) {
       </div>
 
       <div className="flex w-full max-w-xl flex-col gap-2">
-        <div ref={log} className="h-24 overflow-y-auto rounded-lg bg-zinc-900 p-3 text-sm sm:h-32">
+        <div ref={log} className="cab h-24 overflow-y-auto rounded-md p-3 text-sm sm:h-32">
           {guesses.length === 0 && <p className="text-zinc-600">Shout your guesses here.</p>}
           {guesses.map((g, i) => (
             <p key={i} className={g.correct ? "font-medium text-emerald-400" : "text-zinc-300"}>
@@ -190,12 +190,12 @@ export default function DoodleGuess({ code, slot }: GameProps) {
             onChange={(e) => setText(e.target.value)}
             disabled={!round || over || !slot}
             placeholder={over ? "Round over" : "What is it?"}
-            className="flex-1 rounded-lg bg-zinc-900 px-3 py-2 text-sm outline-none ring-1 ring-zinc-800 focus:ring-emerald-600 disabled:opacity-50"
+            className="cab flex-1 rounded-sm px-3 py-2 font-sans text-base outline-none focus:border-emerald-500 disabled:opacity-50"
           />
           <button
             type="submit"
             disabled={!round || over || !slot}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium disabled:opacity-40"
+            className="btn-arcade rounded-sm px-4 py-2 disabled:opacity-40"
           >
             Guess
           </button>
@@ -207,7 +207,7 @@ export default function DoodleGuess({ code, slot }: GameProps) {
           <button
             onClick={newDrawing}
             disabled={drawing}
-            className="rounded bg-emerald-600 px-3 py-1 font-medium text-white disabled:opacity-40"
+            className="btn-arcade rounded-sm px-3 py-2 disabled:opacity-40"
           >
             {drawing ? "Drawing…" : round ? "New drawing" : "Start"}
           </button>
@@ -215,7 +215,7 @@ export default function DoodleGuess({ code, slot }: GameProps) {
         {round && !over && (
           <button
             onClick={() => write({ ...round, gaveUp: true })}
-            className="rounded px-3 py-1 text-zinc-300 ring-1 ring-zinc-700 hover:ring-red-600"
+            className="btn-ghost btn-danger rounded-sm px-3 py-2"
           >
             Give up
           </button>

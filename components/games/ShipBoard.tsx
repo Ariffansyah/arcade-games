@@ -15,9 +15,9 @@ function Hull({ cells, size, sunk }: { cells: number[]; size: number; sunk: bool
 
   return (
     <g transform={transform}>
-      <path d={d} fill={sunk ? "#7f1d1d" : "#a1a1aa"} stroke={sunk ? "#450a0a" : "#3f3f46"} strokeWidth={1.5} />
-      <rect x={w * 0.2} y={h * 0.28} width={w * 0.22} height={h * 0.44} rx={2} fill={sunk ? "#450a0a" : "#71717a"} />
-      {cells.length > 2 && <circle cx={w * 0.62} cy={h / 2} r={h * 0.16} fill={sunk ? "#450a0a" : "#71717a"} />}
+      <path d={d} fill={sunk ? "#5c0f2a" : "#b3a3e6"} stroke={sunk ? "#2b0713" : "#2f1f57"} strokeWidth={1.5} />
+      <rect x={w * 0.2} y={h * 0.28} width={w * 0.22} height={h * 0.44} rx={2} fill={sunk ? "#2b0713" : "#4a3480"} />
+      {cells.length > 2 && <circle cx={w * 0.62} cy={h / 2} r={h * 0.16} fill={sunk ? "#2b0713" : "#4a3480"} />}
     </g>
   );
 }
@@ -48,21 +48,21 @@ export default function ShipBoard({
     >
       <defs>
         <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#0c4a6e" />
-          <stop offset="100%" stopColor="#082f49" />
+          <stop offset="0%" stopColor="#0a1f4d" />
+          <stop offset="100%" stopColor="#04081f" />
         </linearGradient>
       </defs>
 
       <rect width={dim} height={dim} rx={4} fill="url(#sea)" />
       {Array.from({ length: size - 1 }, (_, i) => (
-        <g key={i} stroke="#0e5a86" strokeWidth={0.75}>
+        <g key={i} stroke="#1e5fb0" strokeWidth={0.75}>
           <line x1={(i + 1) * CELL} y1={0} x2={(i + 1) * CELL} y2={dim} />
           <line x1={0} y1={(i + 1) * CELL} x2={dim} y2={(i + 1) * CELL} />
         </g>
       ))}
 
       {Array.from({ length: size }, (_, i) => (
-        <g key={i} fill="#71717a" fontSize={9}>
+        <g key={i} fill="#8b76c9" fontSize={9}>
           <text x={i * CELL + CELL / 2} y={-4} textAnchor="middle">{LETTERS[i]}</text>
           <text x={-5} y={i * CELL + CELL / 2 + 3} textAnchor="end">{i + 1}</text>
         </g>
@@ -102,13 +102,13 @@ export default function ShipBoard({
           <g key={cell} transform={`translate(${cx}, ${cy})`} className={fresh ? "burst" : undefined}>
             <polygon
               points="0,-11 3,-4 10,-6 5,0 10,6 3,4 0,11 -3,4 -10,6 -5,0 -10,-6 -3,-4"
-              fill="#f97316"
+              fill="#ff2d95"
             />
-            <circle r={4} fill="#fde047" />
+            <circle r={4} fill="#ffc83d" />
           </g>
         ) : (
           <g key={cell}>
-            <circle cx={cx} cy={cy} r={3} fill="#7dd3fc" opacity={0.8} />
+            <circle cx={cx} cy={cy} r={3} fill="#22d3ee" opacity={0.8} />
             {fresh && (
               <circle className="splash-ring" cx={cx} cy={cy} r={2} fill="none" stroke="#e0f2fe" />
             )}

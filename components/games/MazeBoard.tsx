@@ -31,20 +31,20 @@ export default function MazeBoard({
     >
       <defs>
         <radialGradient id="lamp">
-          <stop offset="0%" stopColor="#34d399" stopOpacity="0.45" />
-          <stop offset="60%" stopColor="#34d399" stopOpacity="0.12" />
-          <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
+          <stop offset="0%" stopColor="#39ff88" stopOpacity="0.45" />
+          <stop offset="60%" stopColor="#39ff88" stopOpacity="0.12" />
+          <stop offset="100%" stopColor="#39ff88" stopOpacity="0" />
         </radialGradient>
       </defs>
 
-      <rect x={-4} y={-4} width={dim + 8} height={dim + 8} rx={6} fill="#000000" />
+      <rect x={-4} y={-4} width={dim + 8} height={dim + 8} rx={6} fill="#05020c" />
 
       {/* Breadcrumbs: where the runner has recently been. */}
       {!blind &&
         run.trail.map((cell, i) => {
           const { x, y } = centre(maze, cell);
           return (
-            <circle key={`${cell}-${i}`} cx={x} cy={y} r={3} fill="#34d399" opacity={(i + 1) / run.trail.length * 0.35} />
+            <circle key={`${cell}-${i}`} cx={x} cy={y} r={3} fill="#39ff88" opacity={(i + 1) / run.trail.length * 0.35} />
           );
         })}
 
@@ -57,7 +57,7 @@ export default function MazeBoard({
             width={C - 6}
             height={C - 6}
             rx={4}
-            fill="#10b981"
+            fill="#39ff88"
           />
           {maze.traps.map((cell) => {
             const { x, y } = centre(maze, cell);
@@ -67,11 +67,11 @@ export default function MazeBoard({
                   <line
                     key={a}
                     x1={x - 8} y1={y} x2={x + 8} y2={y}
-                    stroke="#b91c1c" strokeWidth={2} strokeLinecap="round"
+                    stroke="#ff2e63" strokeWidth={2} strokeLinecap="round"
                     transform={`rotate(${a}, ${x}, ${y})`}
                   />
                 ))}
-                <circle cx={x} cy={y} r={5} fill="#dc2626" />
+                <circle cx={x} cy={y} r={5} fill="#ff2e63" />
               </g>
             );
           })}
@@ -86,7 +86,7 @@ export default function MazeBoard({
           const x = col * C;
           const y = row * C;
           return (
-            <g key={i} stroke="#52525b" strokeWidth={3} strokeLinecap="round">
+            <g key={i} stroke="#6d4bd6" strokeWidth={3} strokeLinecap="round">
               {!!(w & N) && <line x1={x} y1={y} x2={x + C} y2={y} />}
               {!!(w & W) && <line x1={x} y1={y} x2={x} y2={y + C} />}
               {!!(w & E) && col === maze.w - 1 && <line x1={x + C} y1={y} x2={x + C} y2={y + C} />}
@@ -102,7 +102,7 @@ export default function MazeBoard({
           style={{ "--len": `${path.length * C}` } as React.CSSProperties}
           points={path.map((cell) => { const p = centre(maze, cell); return `${p.x},${p.y}`; }).join(" ")}
           fill="none"
-          stroke="#34d399"
+          stroke="#39ff88"
           strokeWidth={3}
           strokeOpacity={0.65}
           strokeLinejoin="round"
@@ -117,13 +117,13 @@ export default function MazeBoard({
           cy={centre(maze, run.lastTrap).y}
           r={3}
           fill="none"
-          stroke="#ef4444"
+          stroke="#ff2e63"
         />
       )}
 
       <g style={{ transform: `translate(${runner.x}px, ${runner.y}px)`, transition: "transform 90ms linear" }}>
         <circle className="torch" r={C * 1.8} fill="url(#lamp)" />
-        <circle r={6} fill="#34d399" />
+        <circle r={6} fill="#39ff88" />
         <circle r={2.5} fill="#ecfdf5" />
         {/* Remounting on each bump is what replays the ring. */}
         {run.bumps > 0 && (

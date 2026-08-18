@@ -1,28 +1,210 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ---------------------------------------------------------------
+   Arcade cabinet theme.
+   The zinc / emerald / red scales are remapped here so every screen
+   picks up the CRT palette without touching its class names.
+   --------------------------------------------------------------- */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-vt323), ui-monospace, monospace;
+  --font-mono: var(--font-vt323), ui-monospace, monospace;
+  --font-display: var(--font-press-start), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  /* Cabinet body: near-black with a violet CRT cast. */
+  --color-zinc-950: #06030d;
+  --color-zinc-900: #120b22;
+  --color-zinc-800: #1d1236;
+  --color-zinc-700: #2f1f57;
+  --color-zinc-600: #4a3480;
+  --color-zinc-500: #8b76c9;
+  --color-zinc-400: #b3a3e6;
+  --color-zinc-300: #d6ccff;
+  --color-zinc-200: #ece5ff;
+  --color-zinc-100: #f7f3ff;
+
+  /* Player-one phosphor green. */
+  --color-emerald-700: #17803d;
+  --color-emerald-600: #22c55e;
+  --color-emerald-500: #39ff88;
+  --color-emerald-400: #5cff9d;
+
+  /* Danger red, pushed to neon. */
+  --color-red-600: #e11d48;
+  --color-red-500: #ff2e63;
+  --color-red-400: #ff5c8a;
+}
+
+:root {
+  --background: #06030d;
+  --foreground: #f7f3ff;
+  --neon-cyan: #22d3ee;
+  --neon-magenta: #ff2d95;
+  --neon-amber: #ffc83d;
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(120% 90% at 50% 0%, #1a0b33 0%, #06030d 62%, #030109 100%);
+  background-attachment: fixed;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-vt323), ui-monospace, monospace;
+  font-size: 1.06rem;
+  letter-spacing: 0.02em;
+}
+
+/* Scanlines + a lit-tube vignette over everything. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.28) 0px,
+      rgba(0, 0, 0, 0.28) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    radial-gradient(130% 100% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.65) 100%);
+  mix-blend-mode: multiply;
+  animation: crt-flicker 5.5s steps(60) infinite;
+}
+
+@keyframes crt-flicker {
+  0%, 96%, 100% { opacity: 1; }
+  97%           { opacity: 0.86; }
+  98%           { opacity: 1; }
+  99%           { opacity: 0.92; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::after { animation: none; }
+}
+
+/* --- Cabinet furniture --- */
+
+/* Chunky pixel type for anything you press or read as a heading. */
+@layer base {
+  h1, h2, h3, button, input, label, .pixel {
+    font-family: var(--font-press-start), ui-monospace, monospace;
+    letter-spacing: 0.04em;
+  }
+
+  h1, h2, h3, button {
+    text-transform: uppercase;
+  }
+
+  /* Press Start 2P runs large per glyph — pull it back to fit the layout. */
+  button, input, h2, h3 {
+    font-size: 0.78em;
+    line-height: 1.6;
+  }
+
+  h1 { line-height: 1.35; }
+
+  button {
+    position: relative;
+    transition: transform 80ms ease, box-shadow 80ms ease, filter 120ms ease;
+  }
+  button:enabled:hover { filter: brightness(1.15); }
+  button:enabled:active { transform: translateY(2px); }
+
+  input {
+    caret-color: var(--color-emerald-500);
+  }
+}
+
+@keyframes marquee-pulse {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.22); }
+}
+
+@keyframes blink {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0.15; }
+}
+
+@layer components {
+  /* Marquee title: layered chromatic glow, like a backlit cabinet header. */
+  .marquee {
+    color: #fff;
+    text-shadow:
+      0 0 4px #fff,
+      0 0 12px var(--neon-magenta),
+      0 0 26px var(--neon-magenta),
+      3px 3px 0 var(--neon-cyan),
+      -3px -3px 0 var(--neon-amber);
+    animation: marquee-pulse 3.2s ease-in-out infinite;
+  }
+
+  .neon-cyan {
+    color: var(--neon-cyan);
+    text-shadow: 0 0 6px currentColor, 0 0 18px currentColor;
+  }
+  .neon-magenta {
+    color: var(--neon-magenta);
+    text-shadow: 0 0 6px currentColor, 0 0 18px currentColor;
+  }
+  .neon-green {
+    color: var(--color-emerald-500);
+    text-shadow: 0 0 6px currentColor, 0 0 18px currentColor;
+  }
+
+  /* A cabinet panel: dark glass, neon rim, inner glow. */
+  .cab {
+    background: linear-gradient(180deg, #150c28 0%, #0b0618 100%);
+    border: 2px solid var(--color-zinc-700);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+      inset 0 0 24px rgba(34, 211, 238, 0.06),
+      0 0 0 2px #06030d,
+      0 8px 0 -2px rgba(0, 0, 0, 0.6);
+  }
+  .cab-hot {
+    border-color: var(--color-emerald-600);
+    box-shadow:
+      inset 0 0 18px rgba(57, 255, 136, 0.12),
+      0 0 0 2px #06030d,
+      0 0 18px rgba(57, 255, 136, 0.25);
+  }
+
+  /* Chunky arcade button: flat top, hard drop shadow, no gradient mush. */
+  .btn-arcade {
+    background: var(--color-emerald-600);
+    color: #04120a;
+    border: 2px solid #0b3d21;
+    box-shadow: 0 4px 0 #0b3d21, 0 4px 14px rgba(57, 255, 136, 0.35);
+  }
+  .btn-arcade:enabled:active { box-shadow: 0 1px 0 #0b3d21; }
+  .btn-arcade:disabled { box-shadow: none; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-zinc-200);
+    border: 2px solid var(--color-zinc-700);
+    box-shadow: 0 4px 0 #06030d;
+  }
+  .btn-ghost:enabled:hover { border-color: var(--neon-cyan); color: var(--neon-cyan); }
+  .btn-ghost:enabled:active { box-shadow: 0 1px 0 #06030d; }
+
+  .btn-danger:enabled:hover { border-color: var(--color-red-500); color: var(--color-red-400); }
+
+  /* INSERT COIN blink. */
+  .blink { animation: blink 1.1s steps(1) infinite; }
+
+  /* Starfield-ish grid floor behind the lobby. */
+  .grid-floor {
+    background-image:
+      linear-gradient(rgba(34, 211, 238, 0.14) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 45, 149, 0.12) 1px, transparent 1px);
+    background-size: 40px 40px, 40px 40px;
+    mask-image: linear-gradient(to bottom, transparent 0%, black 100%);
+  }
 }
 
 /* --- Battleships effects --- */
@@ -32,7 +214,7 @@ body {
   cursor: crosshair;
 }
 .shot-target:hover {
-  fill: #ffffff1f;
+  fill: #22d3ee2e;
 }
 
 @keyframes splash {

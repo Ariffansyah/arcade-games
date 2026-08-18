@@ -104,13 +104,13 @@ export default function Battleships({ code, slot }: GameProps) {
             <>
               <button
                 onClick={() => setMyFleet(randomFleet(`${code}-${Date.now()}`, game.size))}
-                className="rounded px-3 py-1 ring-1 ring-zinc-700 hover:ring-emerald-600"
+                className="btn-ghost rounded-sm px-3 py-2"
               >
                 Reroll
               </button>
               <button
                 onClick={() => write(setReady(game, slot))}
-                className="rounded bg-emerald-600 px-3 py-1 font-medium"
+                className="btn-arcade rounded-sm px-3 py-2"
               >
                 Ready
               </button>
@@ -185,7 +185,7 @@ export default function Battleships({ code, slot }: GameProps) {
       {slot === 1 && (
         <button
           onClick={() => write(newGame(`${code}-${Date.now()}`))}
-          className="rounded px-3 py-1 text-sm text-zinc-300 ring-1 ring-zinc-700 hover:ring-emerald-600"
+          className="btn-ghost rounded-sm px-3 py-2 text-[0.6rem]"
         >
           New game
         </button>
