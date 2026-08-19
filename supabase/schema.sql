@@ -92,6 +92,21 @@ create table if not exists public.game_state (
 
 alter table public.game_state enable row level security;
 
+-- Without this, postgres_changes subscriptions on game_state never fire: Supabase
+-- only streams tables that are members of the realtime publication. Battleships
+-- and Machine Doodle are dead for anyone who is not the writer without it.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'game_state'
+  ) then
+    alter publication supabase_realtime add table public.game_state;
+  end if;
+end $$;
+
 drop policy if exists "anyone may read a room" on public.game_state;
 create policy "anyone may read a room" on public.game_state
   for select to anon, authenticated using (true);
