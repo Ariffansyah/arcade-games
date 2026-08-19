@@ -20,7 +20,7 @@ test("drops anything that is not path geometry", () => {
     <path d="M0,0 L1,1 <script>"/>
     <path d="url(#x)"/>
     <path d=""/>`;
-  // Only the genuine geometry survives; the sibling attributes are discarded.
+
   assert.deepEqual(extractPaths(hostile), ["M0,0 L1,1"]);
 });
 
@@ -33,14 +33,18 @@ test("guessing is forgiving about case, punctuation and plurals", () => {
   assert.ok(isCorrect("  Rockets! ", "rocket"));
   assert.ok(isCorrect("palm-tree", "palm tree"));
   assert.ok(!isCorrect("rocketship", "rocket"));
-  assert.equal(new Set(WORDS).size, WORDS.length); // no duplicate answers
+  assert.equal(new Set(WORDS).size, WORDS.length);
+  assert.ok(WORDS.length > 250);
+  for (const word of WORDS) {
+    assert.match(word, /^[a-z]+( [a-z]+)*$/, word);
+    assert.ok(word.length >= 3 && word.length <= 18, word);
+  }
 });
 
 test("ignores geometry drafted inside a think block", () => {
   const closed = `<think>maybe <path d="M0,0 L9,9"/> no</think><path d="M1,1 L2,2"/>`;
   assert.deepEqual(extractPaths(closed), ["M1,1 L2,2"]);
 
-  // Truncated reasoning: nothing after it, so nothing is a real drawing.
   const cut = `<think>drafting <path d="M0,0 L9,9"/> and then the tokens ran`;
   assert.deepEqual(extractPaths(cut), []);
 });
@@ -49,7 +53,7 @@ test("a near miss is close, a different word is not", () => {
   assert.equal(isClose("elephent", "elephant"), true);
   assert.equal(isClose("hourglas", "hourglass"), true);
   assert.equal(isClose("cot", "cat"), true);
-  assert.equal(isClose("cat", "cat"), false); // that one is just correct
+  assert.equal(isClose("cat", "cat"), false);
   assert.equal(isClose("dog", "cat"), false);
   assert.equal(isClose("", "cat"), false);
 });

@@ -14,7 +14,6 @@ test("closest to the mark wins", () => {
 });
 
 test("an exact tie splits the round", () => {
-  // Mean 20, mark 13.33: a and b are both 13.33 off, c is 46.67 off.
   const { ids } = winners({ a: 0, b: 0, c: 60 });
   assert.deepEqual(ids.sort(), ["a", "b"]);
 });

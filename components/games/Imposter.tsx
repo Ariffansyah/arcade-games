@@ -7,11 +7,9 @@ import type { GameProps, Player } from "@/lib/useRoom";
 
 type Reveal = { word: string; imposterId: string };
 
-/** The whole round, published by the host. Everyone else just renders it. */
 type Table = {
   n: number;
-  /** Fixed for one sitting; stands in for the room code when the server deals,
-   *  so re-opening the game can't deal the same word and the same imposter. */
+
   seed: string;
   phase: Phase;
   roster: Player[];
@@ -21,13 +19,11 @@ type Table = {
 
 type Act = { kind: "clue" | "vote"; from: string; value: string };
 
-// Stable identity: a fresh [] every render would re-run every effect below it.
 const NOBODY: Player[] = [];
 
 export default function Imposter({ code, players, me }: GameProps) {
   const [table, setTable] = useState<Table | null>(null);
-  // Refs are the source of truth: two acts landing in one render would make a
-  // state-derived copy drop one of them, and a lost clue stalls the round.
+
   const clueBox = useRef<Record<string, string>>({});
   const voteBox = useRef<Record<string, string>>({});
   const [clues, setClues] = useState<Record<string, string>>({});
@@ -64,7 +60,6 @@ export default function Imposter({ code, players, me }: GameProps) {
     [publish]
   );
 
-  /** Only the host advances the round, so there is exactly one writer. */
   const advance = () => {
     if (!isHost || !table || table.reveal) return;
     const clued = clueBox.current;
@@ -83,7 +78,14 @@ export default function Imposter({ code, players, me }: GameProps) {
         const response = await fetch("/api/imposter", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ code: table.seed, round: table.n, ids, reveal: true }),
+
+          body: JSON.stringify({
+            code: table.seed,
+            round: table.n,
+            ids,
+            playerId: me.id,
+            reveal: true,
+          }),
         });
         const reveal: Reveal = await response.json();
         const { accused } = tally(voted);
@@ -109,8 +111,6 @@ export default function Imposter({ code, players, me }: GameProps) {
 
   const act = useBroadcast<Act>(`imposter-act:${code}`, "act", record);
 
-  // Each player asks the server for their own role — the word never travels
-  // through the room, so the imposter has nothing to read.
   useEffect(() => {
     if (!table || !playing || role) return;
     let live = true;
@@ -134,7 +134,6 @@ export default function Imposter({ code, players, me }: GameProps) {
   }, [table, playing, role, code, me.id, ids]);
 
   const start = () => {
-    // `send` skips the broadcast handler, so the host clears its own round here.
     clueBox.current = {};
     voteBox.current = {};
     setClues({});

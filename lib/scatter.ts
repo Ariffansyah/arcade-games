@@ -1,7 +1,5 @@
 import { hash, rng } from "./rng.ts";
 
-/** Five of these a round. Broad enough that everyone has something, narrow
- *  enough that two people rarely land on the same answer. */
 export const PROMPTS = [
   "An animal", "A country", "Something in a fridge", "A film", "A boy's name",
   "A girl's name", "Something you sit on", "A job", "Something in a school bag",
@@ -17,7 +15,6 @@ export const ROUND_MS = 90_000;
 
 export type Sheet = { letter: string; prompts: string[] };
 
-/** Same seed, same sheet, on every client. */
 export function sheet(seed: string, round: number): Sheet {
   const random = rng(hash(`${seed}:${round}`));
   const pool = [...PROMPTS];
@@ -29,16 +26,11 @@ export function sheet(seed: string, round: number): Sheet {
 
 const normalise = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
 
-/** An answer counts if it's the right letter and more than one letter long. */
 export const usable = (answer: string, letter: string) => {
   const word = normalise(answer);
   return word.length > 1 && word.startsWith(letter);
 };
 
-/**
- * A point per usable answer nobody else wrote. Matching answers cancel each
- * other out — that is the whole game.
- */
 export function tally(answers: Record<string, string[]>, letter: string) {
   const seen = new Map<string, number>();
   for (const sheetAnswers of Object.values(answers))

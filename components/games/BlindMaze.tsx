@@ -19,8 +19,6 @@ const SIZES = [
 
 const secs = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 
-/** The runner's Run, plus who is holding the controls. Both travel together so
- *  a client that joins late learns the seating from the next move. */
 type Sync = { run: Run; driver: string };
 
 export default function BlindMaze({ code, players, me }: GameProps) {
@@ -35,7 +33,6 @@ export default function BlindMaze({ code, players, me }: GameProps) {
     []
   );
 
-  // Only the seed travels; both clients rebuild the same maze from it.
   const maze = useMemo(
     () => generateMaze(run.seed, run.size, run.size, Math.round(run.size * run.size * 0.06)),
     [run.seed, run.size]
@@ -48,7 +45,6 @@ export default function BlindMaze({ code, players, me }: GameProps) {
     if (payload.run.finishedAt) recordBest(payload.run);
   });
 
-  // Nobody picked yet, so the first player in the room takes the controls.
   const wheel = driverId ?? players[0]?.id ?? "";
   const driver = wheel === me.id;
 
@@ -107,7 +103,6 @@ export default function BlindMaze({ code, players, me }: GameProps) {
         Walls stop you, traps throw you back to the start, the green tile is the way out.
       </p>
 
-      {/* Anyone can hand the controls to anyone — including themselves. */}
       <div className="flex flex-wrap items-center justify-center gap-2">
         <span className="pixel text-[0.55rem] text-zinc-500">At the controls</span>
         {players.map((p) => (
@@ -124,12 +119,10 @@ export default function BlindMaze({ code, players, me }: GameProps) {
         ))}
       </div>
 
-      {/* Remounting on each trap springs the shake again. */}
       <div key={run.traps} className={run.traps ? "shake" : undefined}>
         <MazeBoard maze={maze} run={run} blind={driver} />
       </div>
 
-      {/* Touch devices have no arrow keys — only they get the pad. */}
       {driver && (
         <div className="hidden w-44 grid-cols-3 gap-1.5 pointer-coarse:grid">
           {[
@@ -146,8 +139,7 @@ export default function BlindMaze({ code, players, me }: GameProps) {
                 aria-label={{ [N]: "up", [E]: "right", [S]: "down", [W]: "left" }[dir]}
                 className="cab flex h-14 items-center justify-center rounded-sm text-emerald-400 active:border-emerald-500 active:text-emerald-300"
               >
-                {/* One rotated triangle, not four arrow glyphs — the pixel font
-                    only ships some of them, so the fallbacks never matched. */}
+
                 <svg
                   viewBox="0 0 10 10"
                   aria-hidden

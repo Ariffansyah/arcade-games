@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
-import { GAMES, seatLabel } from "@/lib/games";
+import { useMemo, useState, useSyncExternalStore } from "react";
+import { GAMES, moodLabel, seatLabel, type GameInfo } from "@/lib/games";
 import { useRoom, type GameProps } from "@/lib/useRoom";
 import BlindMaze from "@/components/games/BlindMaze";
 import DoodleGuess from "@/components/games/DoodleGuess";
@@ -15,6 +15,10 @@ import Scatter from "@/components/games/Scatter";
 import TwoThirds from "@/components/games/TwoThirds";
 import Tug from "@/components/games/Tug";
 import TypeRace from "@/components/games/TypeRace";
+import SamePage from "@/components/games/SamePage";
+import TallTale from "@/components/games/TallTale";
+import BombSquad from "@/components/games/BombSquad";
+import Mayday from "@/components/games/Mayday";
 
 const CABINETS: Record<string, React.ComponentType<GameProps>> = {
   doodle: DoodleGuess,
@@ -29,18 +33,24 @@ const CABINETS: Record<string, React.ComponentType<GameProps>> = {
   thirds: TwoThirds,
   tug: Tug,
   typerace: TypeRace,
+  samepage: SamePage,
+  tale: TallTale,
+  bomb: BombSquad,
+  mayday: Mayday,
 };
+
+type Filter = "all" | "co-op" | "versus";
+
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: "all", label: "Everything" },
+  { id: "co-op", label: "Together" },
+  { id: "versus", label: "Head to head" },
+];
 
 const noop = () => () => {};
 
-/**
- * False on the server and through hydration, true after. Your identity — id and
- * nickname — is minted in the browser, so the server has no way to render it and
- * anything that shows it has to wait.
- */
 const useHydrated = () => useSyncExternalStore(noop, () => true, () => false);
 
-/** Inline nickname editor — the name everyone else sees on the scoreboards. */
 function NameTag({ name, onRename }: { name: string; onRename: (next: string) => void }) {
   const [draft, setDraft] = useState<string | null>(null);
 
@@ -71,32 +81,106 @@ function NameTag({ name, onRename }: { name: string; onRename: (next: string) =>
       <button type="submit" className="btn-arcade rounded-sm px-3 py-2 text-[0.55rem]">
         Save
       </button>
+      <button
+        type="button"
+        onClick={() => setDraft(null)}
+        className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
+      >
+        Cancel
+      </button>
     </form>
   );
 }
 
-/** Room link, copied to the clipboard — the only way anyone else gets in. */
 function Invite({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false);
+  const [state, setState] = useState<"idle" | "copied" | "manual">("idle");
+  const link = typeof window === "undefined" ? "" : `${location.origin}/room/${code}`;
+
+  const share = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Web Arcade", text: `Room ${code}`, url: link });
+        return;
+      } catch {
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(link);
+      setState("copied");
+      setTimeout(() => setState("idle"), 2000);
+    } catch {
+      setState("manual");
+    }
+  };
 
   return (
+    <span className="flex flex-col items-center gap-1">
+      <button onClick={share} className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]">
+        {state === "copied" ? "Link copied" : "Send invite"}
+      </button>
+      {state === "manual" && (
+        <input
+          readOnly
+          value={link}
+          onFocus={(e) => e.currentTarget.select()}
+          aria-label="Room link"
+          className="cab w-64 rounded-sm px-2 py-1 text-center font-sans text-xs"
+        />
+      )}
+    </span>
+  );
+}
+
+function Cabinet({
+  game,
+  players,
+  onPick,
+}: {
+  game: GameInfo;
+  players: number;
+  onPick: () => void;
+}) {
+  const short = players < game.seats;
+  return (
     <button
-      onClick={async () => {
-        await navigator.clipboard.writeText(`${location.origin}/room/${code}`);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }}
-      className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
+      disabled={short}
+      onClick={onPick}
+      className="cab group flex items-center gap-4 rounded-md px-4 py-4 text-left normal-case enabled:hover:border-emerald-600 disabled:opacity-40"
     >
-      {copied ? "Link copied" : "Copy invite link"}
+      <span
+        aria-hidden
+        className="text-xl text-emerald-500 drop-shadow-[0_0_8px_var(--color-emerald-500)]"
+      >
+        {game.art}
+      </span>
+      <span className="flex flex-1 flex-col gap-1.5">
+        <span className="pixel text-[0.65rem] text-zinc-100">{game.name}</span>
+        <span className="font-sans text-zinc-400 normal-case">{game.blurb}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          <span className={`tag ${game.mood === "co-op" ? "tag-coop" : "tag-versus"}`}>
+            {moodLabel(game)}
+          </span>
+          <span className="tag">{seatLabel(game)}</span>
+          {short && <span className="tag tag-warn">needs {game.seats}</span>}
+        </span>
+      </span>
+      <span aria-hidden className="pixel text-[0.6rem] text-zinc-700 group-hover:text-emerald-400">
+        ▶
+      </span>
     </button>
   );
 }
 
 export default function Lobby({ code }: { code: string }) {
-  const { players, me, slot, game, setGame, rename } = useRoom(code);
+  const { players, connected, me, slot, game, setGame, rename } = useRoom(code);
   const hydrated = useHydrated();
+  const [filter, setFilter] = useState<Filter>("all");
   const seat = players.findIndex((p) => p.id === me.id) + 1;
+
+  const shown = useMemo(
+    () => (filter === "all" ? GAMES : GAMES.filter((g) => g.mood === filter)),
+    [filter]
+  );
 
   if (!hydrated)
     return (
@@ -106,14 +190,16 @@ export default function Lobby({ code }: { code: string }) {
     );
 
   const current = GAMES.find((g) => g.id === game);
-  // A cabinet listed but not wired up (or a half-loaded dev bundle) drops you
-  // back to the menu instead of blowing up the room.
+
   const Game = current ? CABINETS[current.id] : undefined;
   if (current && Game) {
     return (
-      <main className="flex min-h-screen flex-col items-center gap-6 p-4 text-zinc-100 sm:p-6">
+      <main className="flex min-h-screen flex-col items-center gap-6 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-zinc-100 sm:p-6">
         <div className="cab flex w-full max-w-3xl items-center justify-between gap-3 rounded-md px-4 py-2">
-          <button onClick={() => setGame(null)} className="text-[0.6rem] text-zinc-400 hover:text-emerald-400">
+          <button
+            onClick={() => setGame(null)}
+            className="text-[0.6rem] text-zinc-400 hover:text-emerald-400"
+          >
             &larr; Menu
           </button>
           <span className="neon-cyan pixel text-[0.6rem]">{current.name}</span>
@@ -121,13 +207,18 @@ export default function Lobby({ code }: { code: string }) {
             {me.name} · P{seat || "?"}
           </span>
         </div>
+        {!connected && (
+          <p role="status" className="blink text-sm text-red-400">
+            Reconnecting…
+          </p>
+        )}
         <Game code={code} slot={slot} players={players} me={me} />
       </main>
     );
   }
 
   return (
-    <main className="relative mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-8 overflow-hidden p-4 text-zinc-100 sm:p-6">
+    <main className="relative mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-8 overflow-hidden p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-zinc-100 sm:p-6">
       <div className="grid-floor pointer-events-none absolute inset-x-0 bottom-0 h-1/3" />
 
       <header className="relative flex flex-col items-center gap-2 pt-4 text-center">
@@ -137,10 +228,16 @@ export default function Lobby({ code }: { code: string }) {
           <NameTag name={me.name} onRename={rename} />
           <Invite code={code} />
         </div>
-        <span className="text-xs text-zinc-600">
-          {players.length} {players.length === 1 ? "player" : "players"} in the room · seats are
-          unlimited, games decide how many they use
-        </span>
+        <p role="status" className="text-xs text-zinc-600">
+          {connected ? (
+            <>
+              {players.length} {players.length === 1 ? "player" : "players"} in the room · seats
+              are unlimited, games decide how many they use
+            </>
+          ) : (
+            <span className="blink text-red-400">Reconnecting to the room…</span>
+          )}
+        </p>
         <span className="text-zinc-400">
           {seat ? `You are Player ${seat}` : "Connecting…"}
           {seat > 2 && " — two-player games are spectate-only"}
@@ -173,40 +270,43 @@ export default function Lobby({ code }: { code: string }) {
 
       <section className="relative flex flex-col gap-3">
         <h2
-          className={`text-center text-[0.6rem] ${players.length >= 2 ? "neon-cyan" : "blink text-zinc-500"}`}
+          className={`text-center text-[0.6rem] ${
+            players.length >= 2 ? "neon-cyan" : "blink text-zinc-500"
+          }`}
         >
           {players.length >= 2 ? "◄ Select game ►" : "Waiting for Player 2…"}
         </h2>
-        {GAMES.map((g) => (
-          <button
-            key={g.id}
-            disabled={players.length < g.seats}
-            onClick={() => setGame(g.id)}
-            className="cab group flex items-center gap-4 rounded-md px-4 py-4 text-left normal-case enabled:hover:border-emerald-600 disabled:opacity-40"
+
+        <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Filter games">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              aria-pressed={filter === f.id}
+              className={`btn-ghost rounded-sm px-3 py-2 text-[0.55rem] ${
+                filter === f.id ? "border-emerald-500 text-emerald-400" : ""
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+
+          <a
+            href="/how-to-play"
+            target="_blank"
+            rel="noreferrer"
+            className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
           >
-            <span className="text-xl text-emerald-500 drop-shadow-[0_0_8px_var(--color-emerald-500)]">
-              {g.art}
-            </span>
-            <span className="flex flex-1 flex-col gap-1">
-              <span className="pixel text-[0.65rem] text-zinc-100">{g.name}</span>
-              <span className="font-sans text-zinc-400 normal-case">
-                {g.blurb}
-                {players.length < g.seats && ` — needs ${g.seats} players`}
-              </span>
-            </span>
-            <span className="flex flex-col items-end gap-1">
-              <span className="pixel text-[0.55rem] text-zinc-600">
-                {seatLabel(g)}
-              </span>
-              <span className="pixel text-[0.6rem] text-zinc-700 group-hover:text-emerald-400">
-                ▶
-              </span>
-            </span>
-          </button>
+            How to play
+          </a>
+        </div>
+
+        {shown.map((g) => (
+          <Cabinet key={g.id} game={g} players={players.length} onPick={() => setGame(g.id)} />
         ))}
       </section>
 
-      <footer className="relative pb-6 text-center text-[0.6rem] text-zinc-600">
+      <footer className="relative pb-2 text-center text-[0.6rem] text-zinc-600">
         Anyone with the code can walk in. Leave the tab and your seat frees up.
       </footer>
     </main>

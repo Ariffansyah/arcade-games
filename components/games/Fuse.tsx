@@ -34,7 +34,7 @@ export default function Fuse({ code, players, me }: GameProps) {
 
   const act = useBroadcast<Answer>(`fuse-act:${code}`, "answer", (a) => {
     setLog((all) => [...all, a].slice(-30));
-    // The host is the only writer, so it alone turns an answer into the next turn.
+
     if (isHost && table && !table.winner) send(survive(table, a.word));
   });
 
@@ -48,7 +48,6 @@ export default function Fuse({ code, players, me }: GameProps) {
     return () => clearInterval(id);
   }, [table]);
 
-  // Only the host enforces the fuse — the player on the clock may have wandered off.
   useEffect(() => {
     if (!isHost || !table || table.winner) return;
     const id = setInterval(() => {
@@ -59,8 +58,7 @@ export default function Fuse({ code, players, me }: GameProps) {
 
   const start = () => {
     setLog([]);
-    // Timestamped, or re-entering the game would serve the same category and
-    // letter it opened with last time.
+
     send(newFuse(`${code}-${Date.now()}`, players.map((p) => p.id), (table?.round ?? 0) + 1));
   };
 

@@ -8,25 +8,24 @@ import type { GameProps } from "@/lib/useRoom";
 
 type Doodle = {
   round: number;
-  /** The answer. Never rendered until the round is over. */
+
   word: string;
   paths: string[];
   startedAt: number;
-  /** Player id of whoever got it, "" while the round is live. */
+
   solvedBy: string;
   solvedName: string;
   solvedAt: number;
-  /** Player ids that voted to give up. Nobody ends the round alone. */
+
   giveUp: string[];
   gaveUp: boolean;
-  /** Rounds solved by the room, and by each player. */
+
   score: number;
   scores: Record<string, number>;
 };
 
 type Guess = { id: string; name: string; text: string; correct: boolean; close: boolean };
 
-/** Blanks now, first letter at 40s, last letter at 70s. */
 const HINTS = [40_000, 70_000];
 
 const secs = (ms: number) => `${Math.floor(ms / 1000)}s`;
@@ -55,14 +54,13 @@ export default function DoodleGuess({ code, players, me }: GameProps) {
   const host = players[0];
   const isHost = host?.id === me.id;
 
-  /** Fastest solve this session — tracked wherever a finished round arrives. */
   const noteSolve = useCallback((d: Doodle) => {
     if (d.solvedAt) setBest((b) => Math.min(b ?? Infinity, d.solvedAt - d.startedAt));
   }, []);
 
   const write = useCallback(
     async (next: Doodle) => {
-      setRound(next); // optimistic; Postgres Changes echoes the same row back
+      setRound(next);
       noteSolve(next);
       await supabase.from("game_state").upsert({
         room_code: code,
@@ -84,7 +82,7 @@ export default function DoodleGuess({ code, players, me }: GameProps) {
           const next = (payload.new as { state: Doodle }).state;
           noteSolve(next);
           setRound((prev) => {
-            if (prev && next.round !== prev.round) setGuesses([]); // new drawing, fresh chat
+            if (prev && next.round !== prev.round) setGuesses([]);
             return next;
           });
         }
@@ -117,7 +115,7 @@ export default function DoodleGuess({ code, players, me }: GameProps) {
   const over = !!round && (!!round.solvedBy || round.gaveUp);
   const age = round ? (round.solvedAt || (over ? round.startedAt : now)) - round.startedAt : 0;
   const live = round && !over ? now - round.startedAt : age;
-  // Everyone in the room has to agree to quit.
+
   const quitters = round?.giveUp ?? [];
   const scores = round?.scores ?? {};
 
@@ -198,7 +196,6 @@ export default function DoodleGuess({ code, players, me }: GameProps) {
         Nobody draws. The machine does — the whole room races to name it.
       </p>
 
-      {/* Scoreboard: everyone in the room, with their solve count. */}
       <ul className="flex flex-wrap justify-center gap-2">
         {players.map((p) => (
           <li
@@ -235,7 +232,6 @@ export default function DoodleGuess({ code, players, me }: GameProps) {
         )}
       </svg>
 
-      {/* Letter count from the start; first and last letter surface as time drags. */}
       {round && !over && (
         <p className="pixel text-[0.7rem] tracking-[0.35em] text-zinc-300">
           {blanks(round.word, live)}

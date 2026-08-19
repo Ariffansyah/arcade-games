@@ -6,15 +6,14 @@ import { useBroadcast } from "@/lib/useBroadcast";
 import type { GameProps } from "@/lib/useRoom";
 
 const PAD_COLOURS = ["#39ff88", "#22d3ee", "#ff2d95", "#ffc83d"];
-/** One frame lit, one frame dark. Without the dark frame two of the same pad in
- *  a row read as a single long flash and the sequence looks shorter than it is. */
+
 const FRAME = 300;
 
 type Act = { from: string; ok: boolean };
 
 export default function Chain({ code, players, me }: GameProps) {
   const [table, setTable] = useState<Run | null>(null);
-  // Playback position for the current turn. Ahead of the sequence means "your go".
+
   const [play, setPlay] = useState({ key: "", step: -1 });
   const [typed, setTyped] = useState<number[]>([]);
   const [wrong, setWrong] = useState(false);
@@ -40,7 +39,6 @@ export default function Chain({ code, players, me }: GameProps) {
   );
 
   const act = useBroadcast<Act>(`chain-act:${code}`, "call", (a) => {
-    // One writer: the host turns a call into the next turn.
     if (!isHost || !table || table.winner || table.order[table.turn] !== a.from) return;
     send(a.ok ? recite(table) : fumble(table));
   });
@@ -55,8 +53,6 @@ export default function Chain({ code, players, me }: GameProps) {
   const ready = armed && play.step >= frames;
   const litPad = playing && play.step % 2 === 0 ? pads[play.step / 2] : -1;
 
-  // Replays the sequence at the top of every turn. The first frame lands on the
-  // beat, so nothing sets state while the effect is still running.
   useEffect(() => {
     if (!table || table.winner) return;
     let step = 0;
@@ -68,8 +64,6 @@ export default function Chain({ code, players, me }: GameProps) {
     return () => clearInterval(id);
   }, [table, key, frames]);
 
-  // A broadcast never comes back to its sender, so the host — who is also a
-  // player — has to apply its own call by hand or its turn parks forever.
   const call = (ok: boolean) => {
     act({ from: me.id, ok });
     if (isHost && table && !table.winner && table.order[table.turn] === me.id)
@@ -90,9 +84,6 @@ export default function Chain({ code, players, me }: GameProps) {
     if (next.length === pads.length) call(true);
   };
 
-  // The clock is in the seed on purpose: leaving the game and starting again
-  // resets `round` to 1, and a seed of just the room code would deal the very
-  // same pads every time.
   const start = () =>
     send(newChain(`${code}-${Date.now()}`, players.map((p) => p.id), (table?.round ?? 0) + 1));
   const name = (id: string) => players.find((p) => p.id === id)?.name ?? "someone";

@@ -50,7 +50,6 @@ test("a run bumps, springs traps and finishes", () => {
   maze.traps = [];
   const start = newRun(5, 100, "1234");
 
-  // Every cell has at least one wall to walk into somewhere on the border.
   const blocked = [N, E, S, W].find((d) => step(maze, 0, d) === null)!;
   const bumped = advance(maze, start, blocked, 200);
   assert.equal(bumped.pos, 0);
@@ -80,5 +79,5 @@ test("the trail is capped and the exit stops the clock", () => {
   assert.equal(run.pos, maze.exit);
   assert.equal(run.finishedAt, path.length - 1);
   assert.ok(run.trail.length <= TRAIL);
-  assert.equal(advance(maze, run, N, 999), run); // finished runs ignore input
+  assert.equal(advance(maze, run, N, 999), run);
 });

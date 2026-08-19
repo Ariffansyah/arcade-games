@@ -23,3 +23,9 @@ test("a nickname is one trimmed line, capped at 16 characters", () => {
   assert.equal(cleanName("x".repeat(40)).length, 16);
   assert.equal(cleanName("   "), "");
 });
+
+test("a nickname cannot smuggle invisible or control characters in", () => {
+  assert.equal(cleanName("Ari\u200bffan"), "Ariffan");
+  assert.equal(cleanName("bad\u0007name\n"), "badname");
+  assert.equal(cleanName("  spaced   out  "), "spaced out");
+});

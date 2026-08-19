@@ -5,18 +5,15 @@ import { bandScore, giverFor, giverScore, pickSpectrum, seededTarget } from "@/l
 import { useBroadcast } from "@/lib/useBroadcast";
 import type { GameProps } from "@/lib/useRoom";
 
-/** Published by whoever is holding the dial — they are the only one who knows
- *  where the mark is, so they are the only one who can close the round. */
 type Table = {
   round: number;
-  /** Fixed for one sitting. Without it the spectra repeat every time the room
-   *  re-opens the game at round 1. */
+
   seed: string;
   order: string[];
   phase: "clue" | "guess" | "reveal";
   clue: string;
   scores: Record<string, number>;
-  /** 0 until the reveal — the mark never travels while it still matters. */
+
   target: number;
   guesses: Record<string, number>;
 };
@@ -37,8 +34,7 @@ export default function Dial({ code, players, me }: GameProps) {
     () => pickSpectrum(table?.seed ?? code, table?.round ?? 1),
     [code, table?.seed, table?.round]
   );
-  // A salt minted in this tab and never broadcast, so nobody else can work out
-  // the mark. Every client rolls one; only the giver's is used or sent.
+
   const [salt] = useState(() => Math.random().toString(36).slice(2));
   const secret = useMemo(() => seededTarget(`${salt}:${table?.round ?? 0}`), [salt, table?.round]);
 
@@ -73,15 +69,13 @@ export default function Dial({ code, players, me }: GameProps) {
     [me.id, secret, send]
   );
 
-  // Who still owes a guess, judged against who is actually in the room — the
-  // round's frozen roster goes stale the moment somebody joins, leaves or reloads.
   const waiting = players.filter((p) => p.id !== giver);
   const missing = waiting.filter((p) => guesses[p.id] === undefined);
 
   const act = useBroadcast<Guess>(`dial-act:${code}`, "guess", (g) => {
     const all = { ...guesses, [g.from]: g.at };
     setGuesses(all);
-    // The giver watches the count, because only the giver can score the round.
+
     if (isGiver && table?.phase === "guess" && waiting.every((p) => all[p.id] !== undefined))
       close(table, all);
   });
@@ -134,7 +128,6 @@ export default function Dial({ code, players, me }: GameProps) {
             <span>{spectrum[1]}</span>
           </div>
 
-          {/* The dial. The mark only ever renders for the giver, or after the reveal. */}
           <div className="relative h-10 w-full rounded-sm bg-[linear-gradient(90deg,#22d3ee,#39ff88,#ffc83d,#ff2d95)]">
             {(isGiver || table.phase === "reveal") && (
               <span
@@ -190,7 +183,7 @@ export default function Dial({ code, players, me }: GameProps) {
                   {waiting.length - missing.length}/{waiting.length} guesses in
                   {missing.length > 0 && ` · waiting on ${missing.map((p) => p.name).join(", ")}`}
                 </p>
-                {/* Nobody should be held hostage by a tab that wandered off. */}
+
                 <button
                   onClick={() => close(table, guesses)}
                   className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
@@ -233,8 +226,6 @@ export default function Dial({ code, players, me }: GameProps) {
         </div>
       )}
 
-      {/* The giver moves the room on after a reveal; the host can always move it
-          on, so an absent giver never parks the round. */}
       {(isHost || (isGiver && table?.phase === "reveal")) && (
         <button
           onClick={start}

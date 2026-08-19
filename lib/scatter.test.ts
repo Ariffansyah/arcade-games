@@ -21,9 +21,9 @@ test("matching answers cancel, unique ones score", () => {
     { a: ["badger", "Brazil"], b: ["Badger!", "belgium"], c: ["bear", "cheese"] },
     "b"
   );
-  assert.equal(scores.a, 1); // badger matched, Brazil is unique
-  assert.equal(scores.b, 1); // badger matched, belgium is unique
-  assert.equal(scores.c, 1); // bear is unique, cheese is the wrong letter
+  assert.equal(scores.a, 1);
+  assert.equal(scores.b, 1);
+  assert.equal(scores.c, 1);
 });
 
 test("the same word in a different slot does not cancel", () => {

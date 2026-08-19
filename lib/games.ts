@@ -1,14 +1,14 @@
-/** Cabinet list. Metadata only — the landing page reads this without pulling
- *  every game's code into its bundle. */
 export type GameInfo = {
   id: string;
   name: string;
   blurb: string;
   art: string;
-  /** Fewest players the game needs. */
+
   seats: number;
-  /** True when more than `seats` players can all join in. */
+
   party: boolean;
+
+  mood: "co-op" | "versus";
 };
 
 export const GAMES: GameInfo[] = [
@@ -19,6 +19,7 @@ export const GAMES: GameInfo[] = [
     art: "✎",
     seats: 2,
     party: true,
+    mood: "versus",
   },
   {
     id: "maze",
@@ -27,6 +28,7 @@ export const GAMES: GameInfo[] = [
     art: "⌘",
     seats: 2,
     party: false,
+    mood: "co-op",
   },
   {
     id: "ships",
@@ -35,6 +37,7 @@ export const GAMES: GameInfo[] = [
     art: "⚓",
     seats: 2,
     party: false,
+    mood: "versus",
   },
   {
     id: "fuse",
@@ -43,6 +46,7 @@ export const GAMES: GameInfo[] = [
     art: "✹",
     seats: 2,
     party: true,
+    mood: "versus",
   },
   {
     id: "draw",
@@ -51,6 +55,7 @@ export const GAMES: GameInfo[] = [
     art: "⚡",
     seats: 2,
     party: true,
+    mood: "versus",
   },
   {
     id: "dial",
@@ -59,6 +64,7 @@ export const GAMES: GameInfo[] = [
     art: "◑",
     seats: 3,
     party: true,
+    mood: "co-op",
   },
   {
     id: "chain",
@@ -67,6 +73,7 @@ export const GAMES: GameInfo[] = [
     art: "❖",
     seats: 2,
     party: true,
+    mood: "versus",
   },
   {
     id: "scatter",
@@ -75,6 +82,7 @@ export const GAMES: GameInfo[] = [
     art: "✽",
     seats: 2,
     party: true,
+    mood: "versus",
   },
   {
     id: "thirds",
@@ -83,6 +91,7 @@ export const GAMES: GameInfo[] = [
     art: "◔",
     seats: 3,
     party: true,
+    mood: "versus",
   },
   {
     id: "tug",
@@ -91,6 +100,7 @@ export const GAMES: GameInfo[] = [
     art: "⇹",
     seats: 2,
     party: true,
+    mood: "versus",
   },
   {
     id: "typerace",
@@ -99,6 +109,7 @@ export const GAMES: GameInfo[] = [
     art: "⌨",
     seats: 2,
     party: true,
+    mood: "versus",
   },
   {
     id: "imposter",
@@ -107,8 +118,48 @@ export const GAMES: GameInfo[] = [
     art: "☠",
     seats: 3,
     party: true,
+    mood: "versus",
+  },
+  {
+    id: "samepage",
+    name: "Same Page",
+    blurb: "Answer together, not against — match and keep the streak.",
+    art: "◎",
+    seats: 2,
+    party: true,
+    mood: "co-op",
+  },
+  {
+    id: "tale",
+    name: "Tall Tale",
+    blurb: "One story, one line each, one awkward word to fit in.",
+    art: "✍",
+    seats: 2,
+    party: true,
+    mood: "co-op",
+  },
+  {
+    id: "bomb",
+    name: "Bomb Squad",
+    blurb: "Five modules, one fuse. One holds the bomb, the other reads the manual.",
+    art: "⚙",
+    seats: 2,
+    party: true,
+    mood: "co-op",
+  },
+  {
+    id: "mayday",
+    name: "Mayday",
+    blurb: "One flies it, the rest read the checklist. Height is the clock.",
+    art: "✈",
+    seats: 2,
+    party: true,
+    mood: "co-op",
   },
 ];
 
-/** How many players a cabinet seats, in words. */
+export const isTogether = (g: GameInfo) => g.mood === "co-op";
+
+export const moodLabel = (g: GameInfo) => (g.mood === "co-op" ? "together" : "head to head");
+
 export const seatLabel = (g: GameInfo) => (g.party ? `${g.seats}+ players` : `${g.seats} players`);

@@ -3,12 +3,11 @@
 import { hullBox, isSunk, shipAt, type Fleet } from "@/lib/battleship.ts";
 
 const CELL = 34;
-/** How long a missile is in the air. Impact effects wait this long. */
+
 export const FLIGHT = 600;
-const PAD = 14; // gutter for the A-H / 1-8 labels
+const PAD = 14;
 const LETTERS = "ABCDEFGHIJ";
 
-/** One ship drawn as a hull with a pointed bow, rotated for vertical ships. */
 function Hull({ cells, size, sunk }: { cells: number[]; size: number; sunk: boolean }) {
   const { w, h, transform } = hullBox(cells, size, CELL, 4);
   const bow = Math.min(h * 0.9, w * 0.35);
@@ -24,10 +23,6 @@ function Hull({ cells, size, sunk }: { cells: number[]; size: number; sunk: bool
   );
 }
 
-/**
- * A missile in flight. The art is centred on its own origin so `fill-box`
- * rotation lands the nose exactly on the target point.
- */
 function Missile({
   x0,
   y0,
@@ -81,7 +76,7 @@ export default function ShipBoard({
   const dim = size * CELL;
   const newest = fleet.shots.at(-1);
   const delay = { "--delay": `${FLIGHT}ms` } as React.CSSProperties;
-  // Nothing launches on mount — only a salvo fired while you are watching.
+
   const centre = (cell: number) => ({
     cx: (cell % size) * CELL + CELL / 2,
     cy: ((cell / size) | 0) * CELL + CELL / 2,
@@ -115,14 +110,12 @@ export default function ShipBoard({
         </g>
       ))}
 
-      {/* Enemy hulls only surface once the whole ship is down. */}
       {fleet.ships
         .filter((ship) => showShips || isSunk(fleet, ship))
         .map((ship) => (
           <Hull key={ship[0]} cells={ship} size={size} sunk={isSunk(fleet, ship)} />
         ))}
 
-      {/* Smoke off the wrecks. */}
       {fleet.ships
         .filter((ship) => isSunk(fleet, ship))
         .flatMap((ship) =>
@@ -146,9 +139,7 @@ export default function ShipBoard({
         const { cx, cy } = centre(cell);
         const fresh = cell === newest;
         return shipAt(fleet, cell) ? (
-          // The burst animation sets a CSS transform, which would replace the
-          // translate attribute and park the marker in the corner — so the
-          // placement and the animation live on separate groups.
+
           <g key={cell} transform={`translate(${cx}, ${cy})`}>
             <g className={fresh ? "burst" : undefined} style={fresh ? delay : undefined}>
               <polygon
@@ -184,7 +175,6 @@ export default function ShipBoard({
         );
       })}
 
-      {/* Keyed on the shot: a new one remounts the missile and replays the flight. */}
       {newest !== undefined && (
         <Missile
           key={`in-${newest}`}

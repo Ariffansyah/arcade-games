@@ -30,7 +30,7 @@ test("burning out costs a life and skips the dead", () => {
   f = { ...f, lives: { a: 1, b: 0, c: 1 } };
   const after = burn(f, 0);
   assert.equal(after.lives.a, 0);
-  assert.equal(after.order[after.turn], "c"); // b is out, so the turn skips it
+  assert.equal(after.order[after.turn], "c");
   assert.equal(after.fuse, FUSE_START);
   assert.deepEqual(alive(after), ["c"]);
   assert.equal(after.winner, "c");

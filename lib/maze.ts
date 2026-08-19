@@ -5,7 +5,7 @@ export const N = 1, E = 2, S = 4, W = 8;
 export type Maze = {
   w: number;
   h: number;
-  /** Per cell: bitmask of walls still standing (N|E|S|W). */
+
   walls: number[];
   traps: number[];
   start: number;
@@ -14,10 +14,6 @@ export type Maze = {
 
 const OPPOSITE: Record<number, number> = { [N]: S, [E]: W, [S]: N, [W]: E };
 
-/**
- * Recursive-backtracker maze. Pure and seeded: both players derive the same
- * maze from the room code, so nothing about the layout needs to be sent.
- */
 export function generateMaze(seed: string, w = 13, h = 13, trapCount = 10): Maze {
   const rand = rng(hash(seed));
   const walls = new Array(w * h).fill(N | E | S | W);
@@ -49,9 +45,6 @@ export function generateMaze(seed: string, w = 13, h = 13, trapCount = 10): Maze
   const exit = w * h - 1;
   const maze: Maze = { w, h, walls, traps: [], start: 0, exit };
 
-  // A perfect maze has exactly one route to the exit, so a trap anywhere on it
-  // makes the maze unwinnable. Traps go in the dead-end branches only: stepping
-  // into one still costs a reset, it just can never seal the way out.
   const onPath = new Set(solve(maze));
   const candidates: number[] = [];
   for (let c = 0; c < w * h; c++) if (!onPath.has(c)) candidates.push(c);
@@ -65,7 +58,6 @@ export function generateMaze(seed: string, w = 13, h = 13, trapCount = 10): Maze
   return maze;
 }
 
-/** The route from start to exit, both ends included. */
 export function solve(maze: Maze): number[] {
   const prev = new Map<number, number>([[maze.start, -1]]);
   const queue = [maze.start];
@@ -85,22 +77,20 @@ export function solve(maze: Maze): number[] {
   return path.reverse();
 }
 
-/** How many breadcrumbs of the runner's recent path to keep. */
 export const TRAIL = 12;
 
 export type Run = {
-  /** Drives the whole layout. Fresh every run, so no two escapes are alike. */
   seed: string;
   size: number;
   pos: number;
-  /** Recent cells, oldest first — the guide's view of where the runner has been. */
+
   trail: number[];
   traps: number;
   bumps: number;
-  /** Cell of the last trap hit, for the blast effect. -1 before the first one. */
+
   lastTrap: number;
   startedAt: number;
-  /** 0 while still running. */
+
   finishedAt: number;
 };
 
@@ -120,7 +110,6 @@ export const newRun = (
   finishedAt: 0,
 });
 
-/** One keypress. Walls bump, traps send you back to the start, the exit ends it. */
 export function advance(maze: Maze, run: Run, dir: number, now = Date.now()): Run {
   if (run.finishedAt) return run;
   const next = step(maze, run.pos, dir);
@@ -135,7 +124,6 @@ export function advance(maze: Maze, run: Run, dir: number, now = Date.now()): Ru
   };
 }
 
-/** Returns the cell reached by moving, or null when a wall blocks the move. */
 export function step(maze: Maze, cell: number, dir: number): number | null {
   if (maze.walls[cell] & dir) return null;
   if (dir === N) return cell - maze.w;

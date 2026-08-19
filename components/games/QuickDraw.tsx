@@ -5,8 +5,6 @@ import { FOUL, armDelay, rank, winner, type Shot } from "@/lib/reaction.ts";
 import { useBroadcast } from "@/lib/useBroadcast";
 import type { GameProps } from "@/lib/useRoom";
 
-/** Host arms the round; every client times its own light off its own receipt.
- *  ponytail: network jitter (tens of ms) is the fairness floor here. */
 type Arm = { round: number; delay: number };
 
 export default function QuickDraw({ code, players, me }: GameProps) {
@@ -41,7 +39,6 @@ export default function QuickDraw({ code, players, me }: GameProps) {
     return () => clearInterval(id);
   }, [goAt]);
 
-  // One win per round, counted once, on every client.
   useEffect(() => {
     if (!best || armed.current === round) return;
     armed.current = round;

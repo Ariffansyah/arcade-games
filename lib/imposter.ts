@@ -3,10 +3,6 @@ import { hash, rng } from "./rng.ts";
 
 export type Phase = "clue" | "vote" | "reveal";
 
-/**
- * The word and the imposter both fall out of one seed, so the server can answer
- * each player separately without storing anything between requests.
- */
 export function assignRound(secret: string, code: string, round: number, ids: string[]) {
   const random = rng(hash(`${secret}:${code}:${round}`));
   const word = WORDS[Math.floor(random() * WORDS.length)];
@@ -14,7 +10,6 @@ export function assignRound(secret: string, code: string, round: number, ids: st
   return { word, imposterId };
 }
 
-/** Most-voted player. A tie means nobody is accused and the imposter walks. */
 export function tally(votes: Record<string, string>) {
   const counts: Record<string, number> = {};
   for (const target of Object.values(votes)) counts[target] = (counts[target] ?? 0) + 1;
@@ -32,7 +27,6 @@ export function tally(votes: Record<string, string>) {
   return { counts, accused };
 }
 
-/** Catch the imposter and every detective scores; miss and the imposter takes the round. */
 export function score(
   previous: Record<string, number>,
   ids: string[],

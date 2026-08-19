@@ -5,8 +5,6 @@ import { MAX, winners } from "@/lib/twothirds.ts";
 import { useBroadcast } from "@/lib/useBroadcast";
 import type { GameProps } from "@/lib/useRoom";
 
-/** Picks stay in the tab that made them until the host calls the reveal — that
- *  is the only thing keeping the round honest. */
 type Table = {
   round: number;
   phase: "pick" | "reveal";
@@ -21,7 +19,6 @@ export default function TwoThirds({ code, players, me }: GameProps) {
   const [table, setTable] = useState<Table | null>(null);
   const [pick, setPick] = useState(33);
   const [locked, setLocked] = useState(false);
-
 
   const host = players[0];
   const isHost = host?.id === me.id;
@@ -58,8 +55,6 @@ export default function TwoThirds({ code, players, me }: GameProps) {
     send({ ...table, picks, scores });
   });
 
-  // The reveal is the cue for every tab to hand its number over — once. The host
-  // put its own in when it called the reveal, so it never gets here.
   const handed = useRef(0);
   useEffect(() => {
     if (!table || table.phase !== "reveal") return;

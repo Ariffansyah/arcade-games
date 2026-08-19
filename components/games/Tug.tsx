@@ -5,8 +5,6 @@ import { ROPE_TO_WIN, rope, sideFor, taken, type Pull } from "@/lib/tug.ts";
 import { useBroadcast } from "@/lib/useBroadcast";
 import type { GameProps } from "@/lib/useRoom";
 
-/** Everyone counts their own pulls and shouts the total a few times a second —
- *  the rope is just the difference, so no client has to referee another. */
 type Bout = { id: number; startedAt: number };
 
 const BEACON_MS = 150;
@@ -38,12 +36,16 @@ export default function Tug({ code, players, me }: GameProps) {
     counted.current = 0;
   });
 
+  const shout = useRef(mine);
   useEffect(() => {
-    const id = setInterval(() => beacon({ id: me.id, name: me.name, side, pulls }), BEACON_MS);
-    return () => clearInterval(id);
-  }, [beacon, me.id, me.name, side, pulls]);
+    shout.current = mine;
+  });
 
-  // One win per bout, counted the same way on every screen.
+  useEffect(() => {
+    const id = setInterval(() => beacon(shout.current), BEACON_MS);
+    return () => clearInterval(id);
+  }, [beacon]);
+
   useEffect(() => {
     if (won === null || !bout || counted.current === bout.id) return;
     counted.current = bout.id;
@@ -60,7 +62,6 @@ export default function Tug({ code, players, me }: GameProps) {
   };
 
   useEffect(() => {
-    // No auto-repeat: a held space bar would pull the rope on its own.
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== "Space" || e.repeat || !bout || won !== null) return;
       e.preventDefault();
@@ -78,7 +79,7 @@ export default function Tug({ code, players, me }: GameProps) {
   };
 
   const crews = [0, 1].map((s) => all.filter((p) => p.side === s));
-  // Clamped so the rope never slides off its own track.
+
   const offset = Math.max(-1, Math.min(1, at / ROPE_TO_WIN));
 
   return (

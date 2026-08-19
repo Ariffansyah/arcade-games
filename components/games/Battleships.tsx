@@ -17,7 +17,6 @@ import {
 import ShipBoard, { FLIGHT } from "./ShipBoard";
 import type { GameProps } from "@/lib/useRoom";
 
-/** What one board says about the shots taken at it. */
 function report(fleet: Fleet) {
   const hits = fleet.shots.filter((c) => fleet.ships.some((s) => s.includes(c))).length;
   const sunk = fleet.ships.filter((s) => isSunk(fleet, s)).length;
@@ -28,7 +27,7 @@ function report(fleet: Fleet) {
     accuracy: fleet.shots.length ? Math.round((hits / fleet.shots.length) * 100) : 0,
     sunk,
     afloat: fleet.ships.length - sunk,
-    /** Ships still afloat, longest first — what is left to hunt. */
+
     remaining: fleet.ships.filter((s) => !isSunk(fleet, s)).map((s) => s.length).sort((a, b) => b - a),
   };
 }
@@ -61,7 +60,7 @@ export default function Battleships({ code, slot, players }: GameProps) {
 
   const write = useCallback(
     async (next: Battleship) => {
-      setGame(next); // optimistic; Postgres Changes echoes the same row back
+      setGame(next);
       await supabase.from("game_state").upsert({
         room_code: code,
         game: "battleship",
@@ -95,7 +94,7 @@ export default function Battleships({ code, slot, players }: GameProps) {
         .eq("room_code", code)
         .maybeSingle();
       if (!live) return;
-      // Only Player 1 seeds the row, so two clients can't race to create it.
+
       if (data?.game === "battleship") setGame(data.state as Battleship);
       else if (slot === 1) write(newGame(`${code}-${Date.now()}`));
     })();
@@ -104,8 +103,6 @@ export default function Battleships({ code, slot, players }: GameProps) {
     };
   }, [code, slot, write]);
 
-  // The clock is enforced by whichever client is *not* on the move, so an idle
-  // or disconnected opponent still loses the turn.
   useEffect(() => {
     if (!game || game.winner || !game.ready[0] || !game.ready[1] || slot === 0) return;
     const id = setInterval(() => {
@@ -124,7 +121,7 @@ export default function Battleships({ code, slot, players }: GameProps) {
   const bothReady = game.ready[0] && game.ready[1];
   const myTurn = bothReady && game.turn === slot && !game.winner;
   const left = Math.max(0, Math.min(TURN_MS, game.deadline - now));
-  // Shots at the enemy board are mine; shots at my board are theirs.
+
   const attack = report(enemy);
   const defence = report(mine);
   const names = [players[0]?.name ?? "Player 1", players[1]?.name ?? "Player 2"];
@@ -214,8 +211,7 @@ export default function Battleships({ code, slot, players }: GameProps) {
           <h3 className="text-xs uppercase tracking-wide text-zinc-500">
             Your waters · {names[slot - 1]}
           </h3>
-          {/* Remounting on each incoming shot is what replays the shake — held
-              back until the missile actually lands. */}
+
           <div
             key={mine.shots.length}
             className={mine.shots.length ? "shake" : undefined}

@@ -28,7 +28,7 @@ test("fleets are legal: right ships, in bounds, in a line, never overlapping", (
       }
       const rows = new Set(ship.map((c) => (c / size) | 0));
       const cols = new Set(ship.map((c) => c % size));
-      // Straight line, and horizontal ships must not wrap onto the next row.
+
       assert.ok(rows.size === 1 || cols.size === 1);
       const stride = rows.size === 1 ? 1 : size;
       ship.forEach((c, i) => assert.equal(c, ship[0] + i * stride));
@@ -41,22 +41,22 @@ const ready = (g: Battleship): Battleship => setReady(setReady(g, 1, 0), 2, 0);
 test("miss passes the turn, hit keeps it", () => {
   const g = ready(newGame("1234"));
   const target = g.fleets[1].ships[0][0];
-  assert.equal(fire(g, target, 1).turn, 1); // hit, shoot again
+  assert.equal(fire(g, target, 1).turn, 1);
   const empty = [...Array(64).keys()].find((c) => !g.fleets[1].ships.flat().includes(c))!;
-  assert.equal(fire(g, empty, 2), g); // still P1's turn, P2's shot ignored
-  assert.equal(fire(g, empty, 1).turn, 2); // miss hands over
+  assert.equal(fire(g, empty, 2), g);
+  assert.equal(fire(g, empty, 1).turn, 2);
 });
 
 test("illegal shots change nothing", () => {
   const g = ready(newGame("1234"));
-  assert.equal(fire(g, 0, 2), g); // not your turn
-  assert.equal(fire(g, 99, 1), g); // off the board
+  assert.equal(fire(g, 0, 2), g);
+  assert.equal(fire(g, 99, 1), g);
   const fresh = newGame("1234");
-  assert.equal(fire(fresh, 0, 1), fresh); // nobody ready yet
-  // A hit keeps the turn, so the same player can try the same cell again.
+  assert.equal(fire(fresh, 0, 1), fresh);
+
   const hitCell = g.fleets[1].ships[0][0];
   const after = fire(g, hitCell, 1);
-  assert.equal(fire(after, hitCell, 1), after); // same cell twice
+  assert.equal(fire(after, hitCell, 1), after);
 });
 
 test("sinking the last ship wins", () => {
@@ -73,9 +73,9 @@ test("the shot clock only starts once both fleets are locked in", () => {
 });
 
 test("running out of time passes the turn, and only the waiting player may call it", () => {
-  const g = ready(newGame("1234")); // deadline 0 + TURN_MS, P1 to move
-  assert.equal(timeout(g, 2, TURN_MS - 1), g); // clock still running
-  assert.equal(timeout(g, 1, TURN_MS + 1), g); // the player on the clock cannot self-pass
+  const g = ready(newGame("1234"));
+  assert.equal(timeout(g, 2, TURN_MS - 1), g);
+  assert.equal(timeout(g, 1, TURN_MS + 1), g);
   const passed = timeout(g, 2, TURN_MS + 1);
   assert.equal(passed.turn, 2);
   assert.equal(passed.turnNo, g.turnNo + 1);
@@ -94,7 +94,6 @@ test("hulls land exactly on the cells they occupy, upright or rotated", () => {
   const cell = 34;
   const m = 4;
 
-  // Real SVG semantics: translate, then rotate 90° about the local origin.
   const project = (transform: string, [a, b]: [number, number]) => {
     const [, tx, ty] = transform.match(/translate\(([-\d.]+), ([-\d.]+)\)/)!.map(Number);
     const turned = /rotate\(90\)/.test(transform);

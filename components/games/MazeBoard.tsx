@@ -2,7 +2,7 @@
 
 import { E, N, S, W, solve, type Maze, type Run } from "@/lib/maze.ts";
 
-const C = 32; // user units per cell; the svg is scaled to fit
+const C = 32;
 
 const centre = (maze: Maze, cell: number) => ({
   x: (cell % maze.w) * C + C / 2,
@@ -16,7 +16,7 @@ export default function MazeBoard({
 }: {
   maze: Maze;
   run: Run;
-  /** The runner's own view: no walls, no traps, no exit — just their lamp. */
+
   blind: boolean;
 }) {
   const dim = maze.w * C;
@@ -39,7 +39,6 @@ export default function MazeBoard({
 
       <rect x={-4} y={-4} width={dim + 8} height={dim + 8} rx={6} fill="#05020c" />
 
-      {/* Breadcrumbs: where the runner has recently been. */}
       {!blind &&
         run.trail.map((cell, i) => {
           const { x, y } = centre(maze, cell);
@@ -78,7 +77,6 @@ export default function MazeBoard({
         </>
       )}
 
-      {/* Walls. Interior E/S edges are their neighbour's W/N, so skip them. */}
       {!blind &&
         maze.walls.map((w, i) => {
           const col = i % maze.w;
@@ -95,7 +93,6 @@ export default function MazeBoard({
           );
         })}
 
-      {/* The way out, drawn in once the runner is through. */}
       {won && (
         <polyline
           className="draw-path"
@@ -125,7 +122,7 @@ export default function MazeBoard({
         <circle className="torch" r={C * 1.8} fill="url(#lamp)" />
         <circle r={6} fill="#39ff88" />
         <circle r={2.5} fill="#ecfdf5" />
-        {/* Remounting on each bump is what replays the ring. */}
+
         {run.bumps > 0 && (
           <circle key={run.bumps} className="bump-ring" r={5} fill="none" stroke="#fca5a5" />
         )}

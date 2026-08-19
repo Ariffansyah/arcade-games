@@ -1,4 +1,3 @@
-/** mulberry32 — small, fast, good enough for mazes and mine placement. */
 export function rng(seed: number) {
   return () => {
     seed = (seed + 0x6d2b79f5) | 0;

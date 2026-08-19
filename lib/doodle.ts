@@ -1,31 +1,44 @@
-/** Things a line drawing can actually convey. */
 export const WORDS = [
-  "airplane", "anchor", "apple", "axe", "backpack", "banana", "bicycle", "boat",
-  "bone", "book", "bottle", "bridge", "broom", "bucket", "butterfly", "cactus",
-  "camera", "candle", "carrot", "castle", "cat", "chair", "cloud", "clock",
-  "compass", "cow", "crab", "crown", "cup", "dog", "donut", "door", "dragon",
-  "drum", "duck", "elephant", "envelope", "eye", "fish", "flag", "flower",
-  "fork", "frog", "ghost", "giraffe", "glasses", "guitar", "hammer", "hand",
-  "hat", "heart", "helicopter", "horse", "hourglass", "house", "igloo", "key",
-  "kite", "ladder", "lamp", "leaf", "lighthouse", "lightning", "lock", "moon",
-  "mountain", "mushroom", "octopus", "owl", "paintbrush", "palm tree", "pencil",
-  "penguin", "piano", "pizza", "rabbit", "rainbow", "robot", "rocket", "sailboat",
-  "scissors", "shark", "shoe", "snail", "snake", "snowman", "sock", "spider",
-  "spoon", "star", "sun", "sunglasses", "sword", "telescope", "tent", "tooth",
-  "tractor", "train", "tree", "trophy", "turtle", "umbrella", "volcano", "whale",
-  "wheel", "windmill",
+  "acorn", "airplane", "ambulance", "anchor", "ant", "anvil", "apple", "arrow", "axe",
+  "backpack", "balloon", "banana", "barn", "basket", "bear", "bed", "bee", "beetle", "bell",
+  "bench", "bicycle", "bird", "boat", "bone", "book", "bottle", "bowl", "bread", "brick",
+  "bridge", "briefcase", "broccoli", "broom", "bucket", "bus", "butterfly", "cactus", "cake",
+  "camel", "camera", "campfire", "candle", "candy", "cannon", "canoe", "car", "carrot",
+  "castle", "cat", "caterpillar", "chain", "chair", "cheese", "cherry", "chicken", "chimney",
+  "church", "clock", "cloud", "compass", "cookie", "corn", "cow", "crab", "crayon",
+  "crocodile", "crown", "cup", "cupcake", "dice", "dinosaur", "dog", "dolphin", "donut",
+  "door", "dragon", "dragonfly", "drill", "drum", "duck", "dumbbell", "eagle", "easel", "egg",
+  "elephant", "envelope", "eye", "feather", "fence", "ferris wheel", "fish", "flag",
+  "flamingo", "flashlight", "flower", "flute", "football", "fork", "fountain", "fox",
+  "fridge", "frog", "ghost", "giraffe", "glasses", "glove", "goat", "gorilla", "grapes",
+  "guitar", "hamburger", "hammer", "hammock", "hand", "harp", "hat", "heart", "hedgehog",
+  "helicopter", "helmet", "honeycomb", "hook", "horse", "horseshoe", "hot air balloon",
+  "hourglass", "house", "ice cream", "igloo", "jar", "jellyfish", "kangaroo", "kettle", "key",
+  "keyboard", "kite", "koala", "ladder", "lamp", "lantern", "laptop", "leaf", "lemon",
+  "light bulb", "lighthouse", "lightning", "lion", "lips", "lobster", "lock", "magnet",
+  "mailbox", "map", "mask", "medal", "megaphone", "microphone", "microscope", "mirror",
+  "mitten", "monkey", "moon", "motorcycle", "mountain", "mug", "mushroom", "nail", "necklace",
+  "nest", "oar", "octopus", "onion", "ostrich", "oven", "owl", "paintbrush", "palm tree",
+  "panda", "parachute", "parrot", "peacock", "pear", "pencil", "penguin", "pepper", "piano",
+  "pineapple", "pizza", "plug", "pot", "potato", "pretzel", "pumpkin", "purse", "pyramid",
+  "rabbit", "rainbow", "rake", "ring", "robot", "rocket", "rose", "ruler", "sailboat",
+  "sandwich", "saw", "scarf", "scissors", "scooter", "screw", "seahorse", "seashell",
+  "seesaw", "shark", "sheep", "shield", "shoe", "shovel", "skateboard", "skull", "sled",
+  "snail", "snake", "snowflake", "snowman", "sock", "sofa", "spaceship", "spider", "spoon",
+  "squirrel", "stairs", "stamp", "star", "starfish", "stethoscope", "stool", "stopwatch",
+  "strawberry", "streetlight", "submarine", "suitcase", "sun", "sunflower", "sunglasses",
+  "surfboard", "swan", "swing", "sword", "table", "teapot", "teddy bear", "telephone",
+  "telescope", "television", "tent", "tiger", "toaster", "tomato", "toolbox", "tooth",
+  "tornado", "towel", "tractor", "traffic light", "train", "treasure chest", "tree",
+  "tricycle", "trophy", "trumpet", "tulip", "turtle", "typewriter", "umbrella", "unicorn",
+  "van", "vase", "violin", "volcano", "wagon", "wallet", "watch", "watering can",
+  "watermelon", "well", "whale", "wheel", "whistle", "windmill", "window", "wolf", "worm",
+  "wrench", "zebra", "zipper",
 ];
 
 const PATH_DATA = /^[MmLlHhVvCcSsQqTtAaZz][\sMmLlHhVvCcSsQqTtAaZz0-9eE,.+-]*$/;
 
-/**
- * Pulls path geometry out of the model's reply and throws away everything else.
- * The model's output ends up in the DOM, so nothing but `d` data is trusted:
- * no elements, no attributes, no markup survives this.
- */
 export function extractPaths(text: string, max = 60): string[] {
-  // Reasoning models draft and discard geometry inside <think>. Those drafts are
-  // not the drawing, and a truncated block leaves half-finished paths behind.
   const visible = text
     .replace(/<think>[\s\S]*?<\/think>/gi, "")
     .replace(/<think>[\s\S]*$/i, "");
@@ -43,10 +56,8 @@ export function extractPaths(text: string, max = 60): string[] {
 
 const normalise = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "").replace(/s$/, "");
 
-/** Plurals and stray punctuation shouldn't cost anyone the round. */
 export const isCorrect = (guess: string, word: string) => normalise(guess) === normalise(word);
 
-/** Levenshtein, two rows deep — the words here are never long enough to need more. */
 function distance(a: string, b: string) {
   let row = Array.from({ length: b.length + 1 }, (_, i) => i);
   for (let i = 1; i <= a.length; i++) {
@@ -63,10 +74,6 @@ function distance(a: string, b: string) {
   return row[b.length];
 }
 
-/**
- * A near miss worth telling the guesser about: a typo or one wrong ending, not
- * a different animal. Short words get one edit, longer ones two.
- */
 export function isClose(guess: string, word: string) {
   const a = normalise(guess);
   const b = normalise(word);

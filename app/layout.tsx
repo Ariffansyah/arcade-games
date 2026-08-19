@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Press_Start_2P, VT323 } from "next/font/google";
 import "./globals.css";
+import HelpLink from "@/components/HelpLink";
 
 const pressStart = Press_Start_2P({
   variable: "--font-press-start",
@@ -14,10 +15,27 @@ const vt323 = VT323({
   subsets: ["latin"],
 });
 
+const DESCRIPTION =
+  "Party mini-games for two players or a roomful — half of them co-op, all of them behind one room code. No accounts, no installs.";
+
 export const metadata: Metadata = {
-  title: "Web Arcade",
-  description: "Party mini-games for two players or a roomful, over a 4-digit room code.",
+  title: { default: "Web Arcade", template: "%s · Web Arcade" },
+  description: DESCRIPTION,
+  applicationName: "Web Arcade",
+
+  robots: { index: true, follow: true },
+  openGraph: {
+    title: "Web Arcade",
+    description: DESCRIPTION,
+    type: "website",
+    siteName: "Web Arcade",
+  },
+  twitter: { card: "summary", title: "Web Arcade", description: DESCRIPTION },
+  appleWebApp: { capable: true, title: "Arcade", statusBarStyle: "black-translucent" },
+  formatDetection: { telephone: false },
 };
+
+export const dynamic = "force-dynamic";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -31,7 +49,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${pressStart.variable} ${vt323.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <HelpLink />
+      </body>
     </html>
   );
 }

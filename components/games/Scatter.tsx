@@ -10,7 +10,7 @@ type Table = {
   seed: string;
   phase: "write" | "score";
   startedAt: number;
-  /** Filled in as sheets come back; only read once the phase turns to score. */
+
   sheets: Record<string, string[]>;
   scores: Record<string, number>;
 };
@@ -49,7 +49,6 @@ export default function Scatter({ code, players, me }: GameProps) {
     [publish]
   );
 
-  /** Round points on top of the running total. Pure, so every client agrees. */
   const score = (sheets: Record<string, string[]>) => {
     const round = tally(sheets, card?.letter ?? "");
     const total = { ...(table?.scores ?? {}) };
@@ -75,7 +74,6 @@ export default function Scatter({ code, players, me }: GameProps) {
     return () => clearInterval(id);
   }, [table]);
 
-  // Hands the sheet in on the buzzer, whether or not it is finished.
   useEffect(() => {
     if (!table || table.phase !== "write" || handed || sent.current === table.round) return;
     if (Date.now() < table.startedAt + ROUND_MS) return;

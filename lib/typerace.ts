@@ -1,6 +1,5 @@
 import { hash } from "./rng.ts";
 
-/** Long enough that stamina counts, not just a fast first line. */
 export const PASSAGES = [
   "The quick brown fox jumps over the lazy dog while the whole room watches and " +
     "nobody says a word, because everybody is busy pretending they knew that sentence " +
@@ -86,11 +85,6 @@ export const PASSAGES = [
 
 export const COUNTDOWN_MS = 3000;
 
-/**
- * Which passage a race gets. `avoid` is the index the room just typed — a fresh
- * seed alone still lands on the same passage now and then, and twice running is
- * the one repeat anybody notices.
- */
 export function passageIndex(seed: string, round: number, avoid = -1) {
   const at = hash(`${seed}:${round}`) % PASSAGES.length;
   return at === avoid ? (at + 1) % PASSAGES.length : at;
@@ -99,23 +93,19 @@ export function passageIndex(seed: string, round: number, avoid = -1) {
 export const passage = (seed: string, round: number, avoid = -1) =>
   PASSAGES[passageIndex(seed, round, avoid)];
 
-/** How much of the passage is typed correctly — stops dead at the first slip. */
 export function progress(typed: string, text: string) {
   let at = 0;
   while (at < typed.length && typed[at] === text[at]) at++;
   return at;
 }
 
-/** True while there is a wrong character sitting in the box. */
 export const mistyped = (typed: string, text: string) => typed.length > progress(typed, text);
 
-/** Words per minute, the standard five characters to a word. */
 export const wpm = (chars: number, ms: number) =>
   ms <= 0 ? 0 : Math.round(chars / 5 / (ms / 60_000));
 
 export type Racer = { id: string; name: string; chars: number; ms: number; done: boolean };
 
-/** Finishers first by time, then whoever has typed the most. */
 export const standings = (racers: Racer[]): Racer[] =>
   [...racers].sort(
     (a, b) => Number(!a.done) - Number(!b.done) || (a.done && b.done ? a.ms - b.ms : b.chars - a.chars)

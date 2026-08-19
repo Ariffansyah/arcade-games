@@ -14,8 +14,6 @@ import {
 import { useBroadcast } from "@/lib/useBroadcast";
 import type { GameProps } from "@/lib/useRoom";
 
-/** The host names the race; every client counts its own three seconds down from
- *  the moment the message lands, the same way Quick Draw arms its light. */
 type Race = { round: number; seed: string; avoid: number };
 
 const BEACON_MS = 200;
@@ -56,14 +54,16 @@ export default function TypeRace({ code, players, me }: GameProps) {
     return () => clearInterval(id);
   }, [goAt]);
 
+  const run = useRef<Racer>({ id: me.id, name: me.name, chars: 0, ms: 0, done: false });
+  useEffect(() => {
+    run.current = { id: me.id, name: me.name, chars: at, ms, done: !!doneAt };
+  });
+
   useEffect(() => {
     if (!race) return;
-    const id = setInterval(
-      () => beacon({ id: me.id, name: me.name, chars: at, ms, done: !!doneAt }),
-      BEACON_MS
-    );
+    const id = setInterval(() => beacon(run.current), BEACON_MS);
     return () => clearInterval(id);
-  }, [race, beacon, me.id, me.name, at, ms, doneAt]);
+  }, [race, beacon]);
 
   const type = (value: string) => {
     if (!live || doneAt) return;
@@ -75,7 +75,7 @@ export default function TypeRace({ code, players, me }: GameProps) {
     const next = {
       round: (race?.round ?? 0) + 1,
       seed: `${code}-${Date.now()}`,
-      // Whatever the room just typed is off the table for the next race.
+
       avoid: race ? passageIndex(race.seed, race.round, race.avoid) : -1,
     };
     flag(next);
@@ -103,7 +103,6 @@ export default function TypeRace({ code, players, me }: GameProps) {
         haven&apos;t noticed yet.
       </p>
 
-      {/* One lane per racer, filling as they type. */}
       <ul className="flex w-full flex-col gap-2">
         {board.map((r) => (
           <li key={r.id} className="flex items-center gap-3">
@@ -139,8 +138,6 @@ export default function TypeRace({ code, players, me }: GameProps) {
             <span className="text-zinc-500">{text.slice(at + 1)}</span>
           </p>
 
-          {/* A textarea, because the passage is far too long to chase across a
-              single line — Enter is swallowed since it can never match. */}
           <textarea
             ref={box}
             value={typed}
