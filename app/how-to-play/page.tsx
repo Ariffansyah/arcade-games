@@ -3,15 +3,15 @@ import type { Metadata } from "next";
 import { GAMES, isTogether, moodLabel, seatLabel } from "@/lib/games";
 import { HOWTO } from "@/lib/howto";
 import {
-  BUTTON_RULES,
   COLUMNS,
   DIFFICULTY as BOMB_DIFFICULTY,
   GLYPHS,
   MEMORY_STEPS,
   STRIP_DIGIT,
-  WIRE_RULES,
   WORDS,
+  buttonRuleText,
   stepText,
+  wireRuleText,
   type Difficulty as BombDifficulty,
 } from "@/lib/bomb.ts";
 import {
@@ -195,10 +195,11 @@ function BombManual() {
         <h3 className="pixel text-[0.55rem] text-zinc-400">Wires</h3>
         <p className="text-xs text-zinc-600">
           Read in order; the first rule that fits is the answer. A cut wire stops counting, so the
-          whole list is re-read after every cut.
+          whole list is re-read after every cut. The priority order below reshuffles every bomb —
+          check the in-game manual for this bomb&apos;s actual order.
         </p>
         <ol className="flex flex-col gap-1 text-sm text-zinc-300">
-          {WIRE_RULES.map((rule, i) => (
+          {wireRuleText([0, 1, 2, 3, 4, 5]).map((rule, i) => (
             <li key={i} className="flex gap-2">
               <span className="text-zinc-600">{i + 1}.</span>
               {rule}
@@ -229,8 +230,11 @@ function BombManual() {
 
       <div className="manual flex flex-col gap-3 p-5">
         <h3 className="pixel text-[0.55rem] text-zinc-400">Button</h3>
+        <p className="text-xs text-zinc-600">
+          Priority order reshuffles every bomb too — this is just the reference list.
+        </p>
         <ol className="flex flex-col gap-1 text-sm text-zinc-300">
-          {BUTTON_RULES.map((rule, i) => (
+          {buttonRuleText([0, 1, 2, 3, 4]).map((rule, i) => (
             <li key={i} className="flex gap-2">
               <span className="text-zinc-600">{i + 1}.</span>
               {rule}

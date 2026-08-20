@@ -2,25 +2,23 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  BUTTON_RULES,
-  COLUMNS,
   DIFFICULTY,
   GLYPHS,
   KIND_NAMES,
-  MEMORY_STEPS,
   STRIP_DIGIT,
   WORDS,
-  WIRE_RULES,
   accepts,
+  buttonRuleText,
   clock,
   fuseFor,
   holderFor,
   isDone,
   makeBomb,
+  memoryStepText,
   solveWires,
-  stepText,
   target,
   wanted,
+  wireRuleText,
   type Bomb,
   type ButtonModule,
   type Difficulty,
@@ -40,6 +38,7 @@ type Table = {
 
   order: string[];
   startedAt: number;
+  holderId: string;
 
   done: number[][];
   strikes: number;
@@ -54,6 +53,7 @@ const normalize = (t: Table): Table => ({
   ...t,
   done: Array.isArray(t.done) ? t.done.map((d) => (Array.isArray(d) ? d : [])) : [],
   strikes: t.strikes ?? 0,
+  holderId: t.holderId ?? holderFor(t.order, t.round),
 });
 
 const WIRE: Record<string, string> = {
@@ -87,7 +87,7 @@ export default function BombSquad({ code, players, me }: GameProps) {
   const host = players[0];
   const isHost = host?.id === me.id;
   const bomb: Bomb | null = table ? makeBomb(table.seed, table.round, table.difficulty) : null;
-  const holder = table ? holderFor(table.order, table.round) : "";
+  const holder = table?.holderId ?? "";
   const amHolder = holder === me.id;
   const live = table?.result === "live";
   const fuse = table ? fuseFor(table.difficulty, table.round) : 0;
@@ -151,18 +151,25 @@ export default function BombSquad({ code, players, me }: GameProps) {
   const start = () => {
     const next = (table?.round ?? 0) + 1;
     const seed = `${code}-${Date.now()}`;
+    const order = players.map((p) => p.id);
     send({
       round: next,
       seed,
       difficulty,
-      order: players.map((p) => p.id),
+      order,
       startedAt: Date.now(),
+      holderId: holderFor(order, next),
       done: makeBomb(seed, next, difficulty).modules.map(() => []),
       strikes: 0,
       result: "live",
       blame: null,
       saved: table?.saved ?? 0,
     });
+  };
+
+  const swapHolder = (id: string) => {
+    if (!table || id === table.holderId) return;
+    send({ ...table, holderId: id });
   };
 
   const name = (id: string) => players.find((p) => p.id === id)?.name ?? "someone";
@@ -175,7 +182,8 @@ export default function BombSquad({ code, players, me }: GameProps) {
       </p>
       <p className="text-center text-xs text-zinc-600">
         The bomb is the opponent, not each other. Every module has to come down before the fuse
-        does, and a wrong move is a strike, not always an explosion. Roles swap every round.
+        does, and a wrong move is a strike, not always an explosion. Roles swap every round, or
+        switch anyone in with the dropdown.
       </p>
 
       {table && bomb && (
@@ -183,8 +191,20 @@ export default function BombSquad({ code, players, me }: GameProps) {
           <span className="text-zinc-400">
             Defused <span className="neon-green">{table.saved}</span>
           </span>
-          <span className="text-zinc-500">
+          <span className="flex items-center gap-2 text-zinc-500">
             {amHolder ? "you are holding it" : `${name(holder)} is holding it`}
+            <select
+              value={holder}
+              onChange={(e) => swapHolder(e.target.value)}
+              aria-label="Switch who is holding the bomb"
+              className="rounded-sm border border-zinc-800 bg-transparent px-1 py-0.5 text-xs text-zinc-400"
+            >
+              {players.map((p) => (
+                <option key={p.id} value={p.id} className="bg-zinc-900">
+                  {p.id === me.id ? `${p.name} (you)` : p.name}
+                </option>
+              ))}
+            </select>
           </span>
           <span className="text-zinc-500">
             {DIFFICULTY[table.difficulty].label} · round {table.round}
@@ -282,7 +302,7 @@ export default function BombSquad({ code, players, me }: GameProps) {
               </span>
             </div>
 
-            {active && <Manual module={active} />}
+            {active && <Manual bomb={bomb} module={active} />}
 
             {!live && <Verdict table={table} bomb={bomb} allowed={allowed} />}
           </div>
@@ -573,11 +593,11 @@ function PasswordPanel({ module: m, done, live, onInput }: PanelProps & { module
   );
 }
 
-function Manual({ module: m }: { module: Module }) {
+function Manual({ bomb, module: m }: { bomb: Bomb; module: Module }) {
   if (m.kind === "wires")
     return (
       <ol className="flex flex-col gap-2 font-sans text-sm text-zinc-300">
-        {WIRE_RULES.map((rule, i) => (
+        {wireRuleText(bomb.wireRuleOrder).map((rule, i) => (
           <li key={i} className="flex gap-2">
             <span className="text-zinc-600">{i + 1}.</span>
             {rule}
@@ -598,7 +618,7 @@ function Manual({ module: m }: { module: Module }) {
           them pressed top to bottom in that column&apos;s order.
         </p>
         <div className="flex justify-center gap-6">
-          {COLUMNS.map((column, c) => (
+          {bomb.keypadColumns.map((column, c) => (
             <ol key={c} className="flex flex-col gap-1 text-center">
               {column.map((g) => (
                 <li key={g} className="text-lg text-zinc-300" title={GLYPHS[g]}>
@@ -615,7 +635,7 @@ function Manual({ module: m }: { module: Module }) {
     return (
       <div className="flex flex-col gap-3 text-sm text-zinc-300">
         <ol className="flex flex-col gap-2">
-          {BUTTON_RULES.map((rule, i) => (
+          {buttonRuleText(bomb.buttonRuleOrder).map((rule, i) => (
             <li key={i} className="flex gap-2">
               <span className="text-zinc-600">{i + 1}.</span>
               {rule}
@@ -659,13 +679,13 @@ function Manual({ module: m }: { module: Module }) {
         every stage, so keep a note of what you pressed.
       </p>
       <div className="flex flex-col gap-2">
-        {MEMORY_STEPS.map((stage, s) => (
+        {memoryStepText(bomb.memoryStepOrder).map((stage, s) => (
           <div key={s} className="grid grid-cols-[auto_1fr] gap-2 text-xs">
             <span className="pixel text-[0.5rem] text-zinc-500">S{s + 1}</span>
             <ul className="flex flex-col gap-0.5">
-              {stage.map((step, d) => (
+              {stage.map((text, d) => (
                 <li key={d}>
-                  <span className="text-zinc-600">display {d + 1}:</span> {stepText(step)}
+                  <span className="text-zinc-600">display {d + 1}:</span> {text}
                 </li>
               ))}
             </ul>

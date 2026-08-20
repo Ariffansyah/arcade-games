@@ -45,13 +45,30 @@ export const DIFFICULTY: Record<
 export const fuseFor = (d: Difficulty, round: number) =>
   Math.max(45_000, DIFFICULTY[d].fuse - (round - 1) * 5_000);
 
-export type Bomb = { serial: string; difficulty: Difficulty; modules: Module[] };
+export type Bomb = {
+  serial: string;
+  difficulty: Difficulty;
+  modules: Module[];
+  wireRuleOrder: number[];
+  buttonRuleOrder: number[];
+  keypadColumns: Glyph[][];
+  memoryStepOrder: number[][];
+};
 export type Module = WiresModule | KeypadModule | ButtonModule | MemoryModule | PasswordModule;
 
 const SERIAL_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const VOWELS = "AEIOU";
 
 const pick = <T,>(random: () => number, xs: readonly T[]) => xs[Math.floor(random() * xs.length)];
+
+function shuffle<T>(random: () => number, xs: readonly T[]): T[] {
+  const out = [...xs];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
 
 export function makeBomb(seed: string, round: number, difficulty: Difficulty): Bomb {
   const random = rng(hash(`${seed}:${round}:${difficulty}`));
@@ -65,7 +82,19 @@ export function makeBomb(seed: string, round: number, difficulty: Difficulty): B
     Array.from({ length: 3 }, () => SERIAL_LETTERS[Math.floor(random() * SERIAL_LETTERS.length)])
       .join("") +
     Math.floor(random() * 10);
-  return { serial, difficulty, modules };
+  const wireRuleOrder = shuffle(random, [0, 1, 2, 3, 4, 5]);
+  const buttonRuleOrder = shuffle(random, [0, 1, 2, 3, 4]);
+  const keypadColumns = COLUMNS.map((c) => shuffle(random, c));
+  const memoryStepOrder = Array.from({ length: 5 }, () => shuffle(random, [0, 1, 2, 3]));
+  return {
+    serial,
+    difficulty,
+    modules,
+    wireRuleOrder,
+    buttonRuleOrder,
+    keypadColumns,
+    memoryStepOrder,
+  };
 }
 
 function makeModule(kind: Kind, random: () => number, round: number): Module {
@@ -118,14 +147,63 @@ export type Color = (typeof COLORS)[number];
 export type Wire = { color: Color; num: number; striped: boolean };
 export type WiresModule = { kind: "wires"; wires: Wire[]; stages: number };
 
-export const WIRE_RULES = [
-  "If exactly one wire is red, cut the red one.",
-  "Otherwise, if more than one wire is striped, cut the last striped wire.",
-  "Otherwise, if the last wire is white and the serial ends in an odd digit, cut the first wire.",
-  "Otherwise, if there are no yellow wires and the serial contains a vowel, cut the second wire.",
-  "Otherwise, if the numbers add up to an even total, cut the highest number.",
-  "Otherwise, if exactly one wire is blue, cut the wire after it — wrapping to the first.",
-  "Otherwise, cut the last wire.",
+type WireCtx = {
+  b: Bomb;
+  left: { w: Wire; i: number }[];
+  at: (n: number) => number;
+  last: { w: Wire; i: number };
+};
+
+const WIRE_RULE_DEFS: { text: string; test: (c: WireCtx) => number | null }[] = [
+  {
+    text: "Exactly one wire is red — cut the red one.",
+    test: (c) => {
+      const reds = c.left.filter(({ w }) => w.color === "red");
+      return reds.length === 1 ? reds[0].i : null;
+    },
+  },
+  {
+    text: "More than one wire is striped — cut the last striped wire.",
+    test: (c) => {
+      const striped = c.left.filter(({ w }) => w.striped);
+      return striped.length > 1 ? striped[striped.length - 1].i : null;
+    },
+  },
+  {
+    text: "The last wire is white and the serial ends in an odd digit — cut the first wire.",
+    test: (c) => (c.last.w.color === "white" && oddSerial(c.b) ? c.at(0) : null),
+  },
+  {
+    text: "There are no yellow wires and the serial contains a vowel — cut the second wire.",
+    test: (c) => {
+      const hasYellow = c.left.some(({ w }) => w.color === "yellow");
+      return !hasYellow && vowelSerial(c.b) ? c.at(1) : null;
+    },
+  },
+  {
+    text: "The numbers add up to an even total — cut the highest number.",
+    test: (c) => {
+      const total = c.left.reduce((sum, { w }) => sum + w.num, 0);
+      if (total % 2 !== 0) return null;
+      const highest = c.left.reduce((best, e) => (e.w.num > best.w.num ? e : best), c.left[0]);
+      return highest.i;
+    },
+  },
+  {
+    text: "Exactly one wire is blue — cut the wire after it, wrapping to the first.",
+    test: (c) => {
+      const blues = c.left.filter(({ w }) => w.color === "blue");
+      if (blues.length !== 1) return null;
+      const after = (c.left.findIndex(({ i }) => i === blues[0].i) + 1) % c.left.length;
+      return c.left[after].i;
+    },
+  },
+];
+const WIRE_CATCHALL_TEXT = "None of the above match — cut the last wire.";
+
+export const wireRuleText = (order: number[]): string[] => [
+  ...order.map((id) => WIRE_RULE_DEFS[id].text),
+  WIRE_CATCHALL_TEXT,
 ];
 
 export function solveWires(b: Bomb, m: WiresModule, cut: number[]): { index: number; rule: number } {
@@ -133,31 +211,14 @@ export function solveWires(b: Bomb, m: WiresModule, cut: number[]): { index: num
   if (!left.length) return { index: -1, rule: -1 };
   const at = (n: number) => left[Math.min(Math.max(n, 0), left.length - 1)].i;
   const last = left[left.length - 1];
+  const ctx: WireCtx = { b, left, at, last };
 
-  const reds = left.filter(({ w }) => w.color === "red");
-  if (reds.length === 1) return { index: reds[0].i, rule: 0 };
-
-  const striped = left.filter(({ w }) => w.striped);
-  if (striped.length > 1) return { index: striped[striped.length - 1].i, rule: 1 };
-
-  if (last.w.color === "white" && oddSerial(b)) return { index: at(0), rule: 2 };
-
-  const hasYellow = left.some(({ w }) => w.color === "yellow");
-  if (!hasYellow && vowelSerial(b)) return { index: at(1), rule: 3 };
-
-  const total = left.reduce((sum, { w }) => sum + w.num, 0);
-  if (total % 2 === 0) {
-    const highest = left.reduce((best, e) => (e.w.num > best.w.num ? e : best), left[0]);
-    return { index: highest.i, rule: 4 };
+  const order = b.wireRuleOrder;
+  for (let pos = 0; pos < order.length; pos++) {
+    const hit = WIRE_RULE_DEFS[order[pos]].test(ctx);
+    if (hit !== null) return { index: hit, rule: pos };
   }
-
-  const blues = left.filter(({ w }) => w.color === "blue");
-  if (blues.length === 1) {
-    const after = (left.findIndex(({ i }) => i === blues[0].i) + 1) % left.length;
-    return { index: left[after].i, rule: 5 };
-  }
-
-  return { index: last.i, rule: 6 };
+  return { index: last.i, rule: order.length };
 }
 
 const oddSerial = (b: Bomb) => Number(b.serial[b.serial.length - 1]) % 2 === 1;
@@ -186,8 +247,8 @@ export const COLUMNS: Glyph[][] = [
   ["✖", "✚", "△", "□", "●", "☆"],
 ];
 
-export function keypadOrder(keys: Glyph[]): Glyph[] {
-  const column = COLUMNS.find((c) => keys.every((k) => c.includes(k))) ?? COLUMNS[0];
+export function keypadOrder(keys: Glyph[], columns: Glyph[][] = COLUMNS): Glyph[] {
+  const column = columns.find((c) => keys.every((k) => c.includes(k))) ?? columns[0];
   return [...keys].sort((a, b) => column.indexOf(a) - column.indexOf(b));
 }
 
@@ -202,13 +263,36 @@ export type ButtonModule = {
   strip: (typeof STRIP_COLORS)[number];
 };
 
-export const BUTTON_RULES = [
-  "If the button is blue and reads Abort, hold it.",
-  "Otherwise, if it reads Detonate and the serial contains a vowel, tap it.",
-  "Otherwise, if the button is yellow, hold it.",
-  "Otherwise, if it reads Press and the serial ends in an odd digit, tap it.",
-  "Otherwise, if the button is red and you have no strikes yet, tap it.",
-  "Otherwise, hold it.",
+type ButtonCtx = { b: Bomb; m: ButtonModule; strikes: number };
+type ButtonHit = { hold: boolean } | null;
+
+const BUTTON_RULE_DEFS: { text: string; test: (c: ButtonCtx) => ButtonHit }[] = [
+  {
+    text: "The button is blue and reads Abort — hold it.",
+    test: (c) => (c.m.color === "blue" && c.m.label === "Abort" ? { hold: true } : null),
+  },
+  {
+    text: "It reads Detonate and the serial contains a vowel — tap it.",
+    test: (c) => (c.m.label === "Detonate" && vowelSerial(c.b) ? { hold: false } : null),
+  },
+  {
+    text: "The button is yellow — hold it.",
+    test: (c) => (c.m.color === "yellow" ? { hold: true } : null),
+  },
+  {
+    text: "It reads Press and the serial ends in an odd digit — tap it.",
+    test: (c) => (c.m.label === "Press" && oddSerial(c.b) ? { hold: false } : null),
+  },
+  {
+    text: "The button is red and you have no strikes yet — tap it.",
+    test: (c) => (c.m.color === "red" && c.strikes === 0 ? { hold: false } : null),
+  },
+];
+const BUTTON_CATCHALL_TEXT = "None of the above match — hold it.";
+
+export const buttonRuleText = (order: number[]): string[] => [
+  ...order.map((id) => BUTTON_RULE_DEFS[id].text),
+  BUTTON_CATCHALL_TEXT,
 ];
 
 export const clock = (seconds: number) =>
@@ -222,14 +306,16 @@ export const STRIP_DIGIT: Record<(typeof STRIP_COLORS)[number], number> = {
 };
 
 export function buttonRule(b: Bomb, m: ButtonModule, strikes: number) {
+  const ctx: ButtonCtx = { b, m, strikes };
   const hold = (rule: number) => ({ rule, hold: true, digit: STRIP_DIGIT[m.strip] });
   const tap = (rule: number) => ({ rule, hold: false, digit: 0 });
-  if (m.color === "blue" && m.label === "Abort") return hold(0);
-  if (m.label === "Detonate" && vowelSerial(b)) return tap(1);
-  if (m.color === "yellow") return hold(2);
-  if (m.label === "Press" && oddSerial(b)) return tap(3);
-  if (m.color === "red" && strikes === 0) return tap(4);
-  return hold(5);
+
+  const order = b.buttonRuleOrder;
+  for (let pos = 0; pos < order.length; pos++) {
+    const hit = BUTTON_RULE_DEFS[order[pos]].test(ctx);
+    if (hit) return hit.hold ? hold(pos) : tap(pos);
+  }
+  return hold(order.length);
 }
 
 export type MemoryModule = {
@@ -260,11 +346,14 @@ export const stepText = (s: Step): string =>
         ? `press the position you pressed in stage ${s.posFrom + 1}`
         : `press the label you pressed in stage ${s.labelFrom + 1}`;
 
-export function memoryTarget(m: MemoryModule, pressed: number[]): number {
+export const memoryStepText = (order: number[][]): string[][] =>
+  MEMORY_STEPS.map((row, s) => order[s].map((idx) => stepText(row[idx])));
+
+export function memoryTarget(b: Bomb, m: MemoryModule, pressed: number[]): number {
   const stage = pressed.length;
   if (stage >= m.stages.length) return -1;
   const here = m.stages[stage];
-  const step = MEMORY_STEPS[stage][here.display - 1];
+  const step = MEMORY_STEPS[stage][b.memoryStepOrder[stage][here.display - 1]];
   if ("pos" in step) return step.pos;
   if ("label" in step) return here.labels.indexOf(step.label);
   if ("posFrom" in step) return pressed[step.posFrom];
@@ -340,7 +429,7 @@ export function accepts(
     case "wires":
       return input === solveWires(b, m, done).index;
     case "keypad":
-      return input === m.keys.indexOf(keypadOrder(m.keys)[done.length]);
+      return input === m.keys.indexOf(keypadOrder(m.keys, b.keypadColumns)[done.length]);
     case "button": {
       const want = buttonRule(b, m, strikes);
       return want.hold
@@ -348,7 +437,7 @@ export function accepts(
         : input === -1;
     }
     case "memory":
-      return input === memoryTarget(m, done);
+      return input === memoryTarget(b, m, done);
     case "password":
       return WORDS[input] === m.answer;
   }
@@ -361,13 +450,13 @@ export function wanted(b: Bomb, m: Module, done: number[], strikes: number): str
       return `wire ${index + 1} — rule ${rule + 1}`;
     }
     case "keypad":
-      return `the ${GLYPHS[keypadOrder(m.keys)[done.length]]}`;
+      return `the ${GLYPHS[keypadOrder(m.keys, b.keypadColumns)[done.length]]}`;
     case "button": {
       const want = buttonRule(b, m, strikes);
       return want.hold ? `a hold, released on a ${want.digit}` : "a tap";
     }
     case "memory":
-      return `position ${memoryTarget(m, done) + 1}`;
+      return `position ${memoryTarget(b, m, done) + 1}`;
     case "password":
       return `the word ${m.answer}`;
   }

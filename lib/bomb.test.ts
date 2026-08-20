@@ -31,8 +31,24 @@ const wires = (...spec: [Wire["color"], number, boolean?][]): WiresModule => ({
   stages: 1,
 });
 
+const IDENTITY_MEMORY_ORDER = [
+  [0, 1, 2, 3],
+  [0, 1, 2, 3],
+  [0, 1, 2, 3],
+  [0, 1, 2, 3],
+  [0, 1, 2, 3],
+];
+
 const rig = (serial: string, m: WiresModule): [Bomb, WiresModule] => [
-  { serial, difficulty: "normal", modules: [m] },
+  {
+    serial,
+    difficulty: "normal",
+    modules: [m],
+    wireRuleOrder: [0, 1, 2, 3, 4, 5],
+    buttonRuleOrder: [0, 1, 2, 3, 4],
+    keypadColumns: COLUMNS,
+    memoryStepOrder: IDENTITY_MEMORY_ORDER,
+  },
   m,
 ];
 
@@ -133,6 +149,10 @@ test("the button reads colour, label, serial and strikes", () => {
     serial,
     difficulty: "normal",
     modules: [m],
+    wireRuleOrder: [0, 1, 2, 3, 4, 5],
+    buttonRuleOrder: [0, 1, 2, 3, 4],
+    keypadColumns: COLUMNS,
+    memoryStepOrder: IDENTITY_MEMORY_ORDER,
   });
   const mod = (color: ButtonModule["color"], label: ButtonModule["label"]): ButtonModule => ({
     kind: "button",
@@ -158,7 +178,15 @@ test("the button reads colour, label, serial and strikes", () => {
 
 test("a held button only accepts a release on the right digit", () => {
   const m: ButtonModule = { kind: "button", color: "yellow", label: "Press", strip: "white" };
-  const b: Bomb = { serial: "BCD2", difficulty: "normal", modules: [m] };
+  const b: Bomb = {
+    serial: "BCD2",
+    difficulty: "normal",
+    modules: [m],
+    wireRuleOrder: [0, 1, 2, 3, 4, 5],
+    buttonRuleOrder: [0, 1, 2, 3, 4],
+    keypadColumns: COLUMNS,
+    memoryStepOrder: IDENTITY_MEMORY_ORDER,
+  };
   assert.equal(accepts(b, m, [], 15, 0), true);
   assert.equal(accepts(b, m, [], 23, 0), false);
   assert.equal(accepts(b, m, [], -1, 0), false);
@@ -166,15 +194,16 @@ test("a held button only accepts a release on the right digit", () => {
 
 test("the memory panel always names a real position", () => {
   for (let round = 1; round < 100; round++) {
-    const m = makeBomb("room", round, "hard").modules.find((x) => x.kind === "memory");
+    const b = makeBomb("room", round, "hard");
+    const m = b.modules.find((x) => x.kind === "memory");
     assert.ok(m && m.kind === "memory");
     const pressed: number[] = [];
     for (let stage = 0; stage < 5; stage++) {
-      const want = memoryTarget(m as MemoryModule, pressed);
+      const want = memoryTarget(b, m as MemoryModule, pressed);
       assert.ok(want >= 0 && want < 4, `stage ${stage + 1} of round ${round}`);
       pressed.push(want);
     }
-    assert.equal(memoryTarget(m as MemoryModule, pressed), -1);
+    assert.equal(memoryTarget(b, m as MemoryModule, pressed), -1);
   }
 });
 
@@ -189,9 +218,9 @@ test("every bomb can be talked down, module by module", () => {
             m.kind === "wires"
               ? solveWires(b, m, done).index
               : m.kind === "keypad"
-                ? m.keys.indexOf(keypadOrder(m.keys)[done.length])
+                ? m.keys.indexOf(keypadOrder(m.keys, b.keypadColumns)[done.length])
                 : m.kind === "memory"
-                  ? memoryTarget(m, done)
+                  ? memoryTarget(b, m, done)
                   : m.kind === "password"
                     ? WORDS.indexOf(m.answer)
                     : buttonRule(b, m, 0).hold
