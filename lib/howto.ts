@@ -254,4 +254,71 @@ export const HOWTO: Record<string, Guide> = {
       "The instruments — fuel, speed, heading, lamps — never change during a run. Take them down once and stop asking.",
     ],
   },
+
+  lastcard: {
+    goal: "Get rid of every card in your hand before anyone else does.",
+    round: [
+      "The host deals seven cards each and turns one face up to start the pile.",
+      "On your turn play one card that matches the top card's colour or its face. Wilds go on anything and let you call the colour.",
+      "Can't go, or don't want to? Draw one. If it fits you may play it straight away, otherwise the turn moves on.",
+      "Skip jumps the next player, Reverse turns the table around, +2 and Wild +4 make the next player pick up and lose their turn.",
+      "Down to one card and the whole room sees LAST CARD over your name.",
+    ],
+    scoring:
+      "Whoever empties their hand takes the round and scores everything still held by everyone else: number cards at face value, action cards 20, wilds 50. Scores carry over between rounds.",
+    tips: [
+      "Hang on to a wild. It is the only card that always gets you out of a corner.",
+      "Two players? Reverse works like a Skip, so it is a free extra turn.",
+      "Watch the card counts. Whoever is on one or two is who your +2 is for.",
+    ],
+  },
+
+  topple: {
+    goal: "Keep the tower standing longer than everyone else. Whoever knocks it down loses the round.",
+    round: [
+      "The tower starts fifteen levels high, three blocks a level, every level crossing the one below it.",
+      "On your turn tap any block below the top. Nothing comes out of the top level, or out of the one under it while the top is still being built.",
+      "A meter appears with a needle sweeping across it. Stop it inside the glowing window to ease the block out cleanly; the block then goes on top by itself.",
+      "Miss the window and the tower sways. Sway carries over to the next pull, and enough of it brings the whole thing down.",
+    ],
+    scoring:
+      "The player who drops the tower takes a mark against their name. Fewest marks after a few rebuilds is the winner.",
+    tips: [
+      "Middle blocks out of a full level are the safest pulls. Leaving one edge block holding a level up is the riskiest thing you can do.",
+      "Riskier blocks get a narrower window and a faster needle, so the risk label is worth reading before you commit.",
+      "A clean pull lets the sway settle. After a bad miss, the next player is pulling from a tower that is still rocking.",
+    ],
+  },
+
+  four: {
+    goal: "Line up four of your discs in a row — across, up, or on a diagonal — before the other player does.",
+    round: [
+      "Two players take turns dropping one disc into any of the seven columns. It falls to the lowest empty spot.",
+      "Tap a column in the 3D rack, or use the numbered buttons under it. Drag to look around the board.",
+      "The first line of four wins. If all 42 spaces fill with no line, it is a draw.",
+      "Rematch keeps the score and hands the first move to whoever went second.",
+    ],
+    scoring: "One point per win, kept across rematches for as long as the same two players sit down.",
+    tips: [
+      "The middle column is part of more possible lines than any other. Start there.",
+      "Look for a spot where one drop makes two threats at once. They can only block one.",
+    ],
+  },
+
+  yacht: {
+    goal: "Fill all thirteen boxes on your score card and finish with the biggest total.",
+    round: [
+      "On your turn roll all five dice. Then roll again up to twice more, keeping any dice you like between rolls.",
+      "Tap a die in the tray, or its button below, to keep it. Kept dice float to the front and do not roll.",
+      "When you are done, pick one empty box on your card. It scores whatever those dice are worth there — even zero.",
+      "Every box gets filled exactly once. The game ends when every card is full.",
+    ],
+    scoring:
+      "Ones to Sixes score the sum of that face. Three and Four of a kind and Chance score all five dice. Full house is 25, small straight 30, large straight 40, Yacht (five alike) 50. Reaching 63 in the top six boxes adds a 35 bonus.",
+    tips: [
+      "The bonus needs three of each face up top. Aim for that and the top half pays for itself.",
+      "Chance is your safety net. Save it for the turn that goes nowhere.",
+      "Sometimes the right move is a zero in Yacht or Ones rather than wrecking a box you can still fill well.",
+    ],
+  },
 };

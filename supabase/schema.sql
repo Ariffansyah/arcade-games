@@ -70,8 +70,9 @@ grant all on table public.rate_limits to service_role;
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Game state
 --
--- Machine Doodle and Battleships keep their round in a row instead of on the
--- broadcast channel, so a player who reloads gets the board back.
+-- Machine Doodle and Battleships play over the broadcast channel like everything
+-- else, and also copy their round into a row so a player who reloads gets the
+-- board back.
 --
 -- READ THIS BEFORE SHIPPING: with no accounts there is no way to scope a row to
 -- "whoever knows the room code" — the browser holds the anon key, so any policy
@@ -91,21 +92,6 @@ create table if not exists public.game_state (
 );
 
 alter table public.game_state enable row level security;
-
--- Without this, postgres_changes subscriptions on game_state never fire: Supabase
--- only streams tables that are members of the realtime publication. Battleships
--- and Machine Doodle are dead for anyone who is not the writer without it.
-do $$
-begin
-  if not exists (
-    select 1 from pg_publication_tables
-    where pubname = 'supabase_realtime'
-      and schemaname = 'public'
-      and tablename = 'game_state'
-  ) then
-    alter publication supabase_realtime add table public.game_state;
-  end if;
-end $$;
 
 drop policy if exists "anyone may read a room" on public.game_state;
 create policy "anyone may read a room" on public.game_state

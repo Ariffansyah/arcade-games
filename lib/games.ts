@@ -156,6 +156,42 @@ export const GAMES: GameInfo[] = [
     party: true,
     mood: "co-op",
   },
+  {
+    id: "lastcard",
+    name: "Last Card",
+    blurb: "Match the colour or the face. Skips, +2s and wilds. Empty your hand first.",
+    art: "♠",
+    seats: 2,
+    party: true,
+    mood: "versus",
+  },
+  {
+    id: "topple",
+    name: "Topple",
+    blurb: "A wooden tower in 3D. Pull a block, stack it on top, don't be the one who drops it.",
+    art: "▤",
+    seats: 2,
+    party: true,
+    mood: "versus",
+  },
+  {
+    id: "four",
+    name: "Four in a Row",
+    blurb: "Drop discs into a 3D rack. Line up four before they do.",
+    art: "◉",
+    seats: 2,
+    party: false,
+    mood: "versus",
+  },
+  {
+    id: "yacht",
+    name: "Yacht",
+    blurb: "Five 3D dice, three rolls a turn, thirteen boxes. Biggest card wins.",
+    art: "⚄",
+    seats: 2,
+    party: true,
+    mood: "versus",
+  },
 ];
 
 export const isTogether = (g: GameInfo) => g.mood === "co-op";

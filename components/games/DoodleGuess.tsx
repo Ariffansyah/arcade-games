@@ -58,10 +58,20 @@ export default function DoodleGuess({ code, players, me }: GameProps) {
     if (d.solvedAt) setBest((b) => Math.min(b ?? Infinity, d.solvedAt - d.startedAt));
   }, []);
 
+  const publish = useBroadcast<Doodle>(`doodle-round:${code}`, "round", (next) => {
+    noteSolve(next);
+    setRound((prev) => {
+      if (prev && next.round !== prev.round) setGuesses([]);
+      return next;
+    });
+  });
+
+  // The broadcast is what the room sees; the row is only read back after a reload.
   const write = useCallback(
     async (next: Doodle) => {
       setRound(next);
       noteSolve(next);
+      publish(next);
       await supabase.from("game_state").upsert({
         room_code: code,
         game: "doodle",
@@ -69,29 +79,8 @@ export default function DoodleGuess({ code, players, me }: GameProps) {
         updated_at: new Date().toISOString(),
       });
     },
-    [code, noteSolve]
+    [code, noteSolve, publish]
   );
-
-  useEffect(() => {
-    const ch = supabase
-      .channel(`doodle:${code}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "game_state", filter: `room_code=eq.${code}` },
-        (payload) => {
-          const next = (payload.new as { state: Doodle }).state;
-          noteSolve(next);
-          setRound((prev) => {
-            if (prev && next.round !== prev.round) setGuesses([]);
-            return next;
-          });
-        }
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, [code, noteSolve]);
 
   useEffect(() => {
     let live = true;

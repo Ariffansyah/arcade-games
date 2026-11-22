@@ -15,6 +15,7 @@ import {
   type Fleet,
 } from "@/lib/battleship.ts";
 import ShipBoard, { FLIGHT } from "./ShipBoard";
+import { useBroadcast } from "@/lib/useBroadcast";
 import type { GameProps } from "@/lib/useRoom";
 
 function report(fleet: Fleet) {
@@ -58,9 +59,13 @@ export default function Battleships({ code, slot, players }: GameProps) {
   const [game, setGame] = useState<Battleship | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
+  const publish = useBroadcast<Battleship>(`ships:${code}`, "state", setGame);
+
+  // The broadcast is what the other admiral sees; the row is only read back after a reload.
   const write = useCallback(
     async (next: Battleship) => {
       setGame(next);
+      publish(next);
       await supabase.from("game_state").upsert({
         room_code: code,
         game: "battleship",
@@ -68,22 +73,8 @@ export default function Battleships({ code, slot, players }: GameProps) {
         updated_at: new Date().toISOString(),
       });
     },
-    [code]
+    [code, publish]
   );
-
-  useEffect(() => {
-    const ch = supabase
-      .channel(`ships:${code}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "game_state", filter: `room_code=eq.${code}` },
-        (payload) => setGame((payload.new as { state: Battleship }).state)
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, [code]);
 
   useEffect(() => {
     let live = true;
