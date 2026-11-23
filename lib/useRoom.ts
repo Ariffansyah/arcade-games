@@ -81,10 +81,12 @@ export function useRoom(code: string, name?: string): RoomState {
       });
     })
       .on("broadcast", { event: "game" }, ({ payload }) => setGameState(payload.game))
-      // Whoever just arrived or reloaded asks which cabinet the room is on.
-      .on("broadcast", { event: "which" }, () =>
-        ch.send({ type: "broadcast", event: "game", payload: { game: gameRef.current } })
-      )
+      // Whoever just arrived or reloaded asks which cabinet the room is on. Only someone who knows
+      // answers: another newcomer saying "none" would pull the whole room back to the menu.
+      .on("broadcast", { event: "which" }, () => {
+        if (gameRef.current)
+          ch.send({ type: "broadcast", event: "game", payload: { game: gameRef.current } });
+      })
       .subscribe((status) => {
         setConnected(status === "SUBSCRIBED");
         if (status === "SUBSCRIBED") {

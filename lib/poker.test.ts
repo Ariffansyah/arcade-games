@@ -15,6 +15,7 @@ import {
   pot,
   raise,
   read,
+  seat,
   timeout,
   type Poker,
 } from "./poker.ts";
@@ -172,4 +173,24 @@ test("out of time: a free check, otherwise a fold", () => {
   const checked = timeout(call(call(g)));
   assert.equal(checked.street, 1, "the big blind checks and the flop comes");
   assert.deepEqual(checked.folded, []);
+});
+
+test("a player the deal missed sits in before the flop, and plays the hand", () => {
+  const g = deal("room", ["a", "b", "c"]);
+  const late = seat(g, "d");
+  assert.deepEqual(late.order, ["a", "b", "c", "d"]);
+  assert.deepEqual(late.holes.d, g.deck.slice(0, 2));
+  assert.equal(late.chips.d, STACK);
+  assert.equal(current(late), current(g), "whoever was up still is");
+  assert.equal(seat(late, "d"), late);
+
+  let h = late;
+  for (let i = 0; i < 3; i++) h = call(h);
+  assert.equal(h.street, 0);
+  assert.equal(current(h), "d", "d still has to call the big blind");
+  h = call(h);
+  assert.equal(h.street, 1);
+  assert.equal(pot(h), 4 * BLIND * 2);
+  assert.equal(seat(h, "e"), h, "not once the flop is out");
+  assert.equal(seat({ ...g, chips: { ...g.chips, e: 0 } }, "e").order.length, 3, "broke waits");
 });

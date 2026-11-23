@@ -16,6 +16,7 @@ import {
   pot,
   raise,
   read,
+  seat,
   timeout,
   type Poker as Game,
 } from "@/lib/poker.ts";
@@ -48,6 +49,19 @@ export default function Poker({ code, players, me, name }: GameProps) {
     if (mine) sfx.win();
   }, [mine, table?.hand]);
 
+  // Presence can trail someone walking in, so the deal may miss them; until the flop they deal
+  // themselves in.
+  const missed =
+    !!table &&
+    !table.won &&
+    table.street === 0 &&
+    !seated &&
+    table.chips[me.id] !== 0 &&
+    players.some((p) => p.id === me.id);
+  useEffect(() => {
+    if (missed) send(seat(table, me.id));
+  }, [missed, table, me.id, send]);
+
   const left = useTurnClock(
     table,
     TURN_MS,
@@ -77,13 +91,16 @@ export default function Poker({ code, players, me, name }: GameProps) {
             and {blindAt(1) * 2} and double every {BLINDS_EVERY} hands. You get {TURN_MS / 1000}{" "}
             seconds a turn. Last one with chips wins.
           </p>
+          <p className="text-sm text-zinc-400">
+            At the table ({players.length}): {players.map((p) => p.name).join(", ")}
+          </p>
           {isHost ? (
             <button
               onClick={() => start(true)}
               disabled={players.length < 2}
               className="btn-arcade play-pulse rounded-sm px-6 py-3 disabled:opacity-40"
             >
-              {players.length < 2 ? "Needs 2 players" : "Deal"}
+              {players.length < 2 ? "Needs 2 players" : `Deal ${players.length} in`}
             </button>
           ) : (
             <span className="blink text-base text-zinc-400">
@@ -356,7 +373,7 @@ export default function Poker({ code, players, me, name }: GameProps) {
                 step={n * 110}
                 glow={lit.length ? lit : undefined}
               />
-              {holding && (
+              {holding && !table.shown?.[me.id] && (
                 <span
                   key={holding.name}
                   className="menu-in pixel rounded-sm border border-amber-300/60 bg-[#06030d]/80 px-2 py-1 text-[0.8rem] text-amber-200"

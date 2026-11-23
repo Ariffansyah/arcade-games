@@ -334,3 +334,16 @@ export function timeout(g: Poker): Poker {
   const next = top(g) > (g.bets[current(g)] ?? 0) ? fold(g) : call(g);
   return { ...next, last: next.last && { ...next.last, late: true } };
 }
+
+// Someone the deal missed — presence can trail a player walking in by a few seconds — is dealt in
+// until the flop comes, at the end of the order with no blind to post. Out of chips, they wait.
+export function seat(g: Poker, id: string): Poker {
+  if (g.won || g.street > 0 || g.order.includes(id) || g.chips[id] === 0) return g;
+  return {
+    ...g,
+    order: [...g.order, id],
+    chips: { ...g.chips, [id]: g.chips[id] ?? STACK },
+    holes: { ...g.holes, [id]: g.deck.slice(0, 2) },
+    deck: g.deck.slice(2),
+  };
+}
