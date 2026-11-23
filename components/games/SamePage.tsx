@@ -119,8 +119,8 @@ export default function SamePage({ code, players, me }: GameProps) {
       {table && (
         <div className="cab flex w-full flex-col gap-4 rounded-md p-5">
           <div className="flex items-center justify-between">
-            <span className="pixel text-[0.55rem] text-zinc-500">Round {table.round}</span>
-            <span className="pixel text-[0.55rem] text-zinc-500">
+            <span className="pixel text-[0.88rem] text-zinc-500">Round {table.round}</span>
+            <span className="pixel text-[0.88rem] text-zinc-500">
               {Object.keys(table.answers).length}/{players.length} in
             </span>
           </div>

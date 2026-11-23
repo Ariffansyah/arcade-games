@@ -18,7 +18,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
   return (
     <div className="flex flex-col gap-2 border-b border-zinc-800/80 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="flex flex-col">
-        <span className="pixel text-[0.55rem] text-zinc-200">{label}</span>
+        <span className="pixel text-[0.88rem] text-zinc-200">{label}</span>
         {hint && <span className="text-sm text-zinc-500">{hint}</span>}
       </div>
       <div className="flex shrink-0 items-center gap-3">{children}</div>
@@ -104,7 +104,7 @@ function Choice<T extends string>({
             onChange(o.id);
             sfx.move();
           }}
-          className={`btn-ghost rounded-sm px-3 py-2 text-[0.5rem] ${
+          className={`btn-ghost rounded-sm px-3 py-2 text-[0.8rem] ${
             value === o.id ? "border-emerald-500 text-emerald-400" : ""
           }`}
         >
@@ -161,7 +161,7 @@ export default function SettingsPanel({
           aria-orientation="vertical"
           className="flex shrink-0 gap-1 overflow-x-auto border-b-2 border-zinc-800 p-3 sm:w-48 sm:flex-col sm:border-r-2 sm:border-b-0"
         >
-          <h2 className="pixel neon-magenta hidden px-2 pt-1 pb-4 text-[0.7rem] sm:block">Settings</h2>
+          <h2 className="pixel neon-magenta hidden px-2 pt-1 pb-4 text-[1.12rem] sm:block">Settings</h2>
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -171,7 +171,7 @@ export default function SettingsPanel({
                 setTab(t.id);
                 sfx.move();
               }}
-              className={`menu-item rounded-sm px-3 py-2.5 text-left text-[0.55rem] whitespace-nowrap ${
+              className={`menu-item rounded-sm px-3 py-2.5 text-left text-[0.88rem] whitespace-nowrap ${
                 tab === t.id ? "menu-item-on" : "text-zinc-400"
               }`}
             >
@@ -203,7 +203,7 @@ export default function SettingsPanel({
                       sfx.start();
                       music.start();
                     }}
-                    className="btn-ghost rounded-sm px-3 py-2 text-[0.5rem]"
+                    className="btn-ghost rounded-sm px-3 py-2 text-[0.8rem]"
                   >
                     Play
                   </button>
@@ -272,7 +272,7 @@ export default function SettingsPanel({
                     aria-label="Nickname"
                     className="cab w-40 rounded-sm px-2 py-1.5 font-sans text-base outline-none focus:border-emerald-500"
                   />
-                  <button type="submit" className="btn-arcade rounded-sm px-3 py-2 text-[0.5rem]">
+                  <button type="submit" className="btn-arcade rounded-sm px-3 py-2 text-[0.8rem]">
                     Save
                   </button>
                 </form>
@@ -286,7 +286,7 @@ export default function SettingsPanel({
                 update(DEFAULTS);
                 sfx.back();
               }}
-              className="btn-ghost btn-danger rounded-sm px-3 py-2 text-[0.5rem]"
+              className="btn-ghost btn-danger rounded-sm px-3 py-2 text-[0.8rem]"
             >
               Reset
             </button>
@@ -297,7 +297,7 @@ export default function SettingsPanel({
                 sfx.back();
                 onClose();
               }}
-              className="btn-arcade rounded-sm px-4 py-2 text-[0.55rem]"
+              className="btn-arcade rounded-sm px-4 py-2 text-[0.88rem]"
             >
               Back <kbd className="opacity-60">Esc</kbd>
             </button>

@@ -124,7 +124,7 @@ export default function TwoThirds({ code, players, me }: GameProps) {
 
       {table?.phase === "pick" && (
         <div className="cab flex w-full max-w-md flex-col items-center gap-3 rounded-md p-5">
-          <span className="pixel text-[0.55rem] text-zinc-500">Round {table.round}</span>
+          <span className="pixel text-[0.88rem] text-zinc-500">Round {table.round}</span>
           <span className="neon-cyan pixel text-2xl">{pick}</span>
           <input
             type="range"

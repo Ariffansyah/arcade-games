@@ -222,7 +222,7 @@ export default function DoodleGuess({ code, players, me }: GameProps) {
       </svg>
 
       {round && !over && (
-        <p className="pixel text-[0.7rem] tracking-[0.35em] text-zinc-300">
+        <p className="pixel text-[1.12rem] tracking-[0.35em] text-zinc-300">
           {blanks(round.word, live)}
         </p>
       )}

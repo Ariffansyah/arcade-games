@@ -114,7 +114,7 @@ export default function Fuse({ code, players, me }: GameProps) {
 
       {table && !table.winner && (
         <div className="cab flex w-full max-w-md flex-col items-center gap-3 rounded-md p-5">
-          <span className="pixel text-[0.55rem] text-zinc-500">Round {table.round}</span>
+          <span className="pixel text-[0.88rem] text-zinc-500">Round {table.round}</span>
           <span className="text-lg text-zinc-200">
             {table.category} starting with{" "}
             <span className="neon-magenta pixel text-xl">{table.letter.toUpperCase()}</span>
@@ -155,7 +155,7 @@ export default function Fuse({ code, players, me }: GameProps) {
 
       {table?.winner && (
         <p className="flash-win text-center">
-          <span className="neon-green pixel text-[0.7rem]">{name(table.winner)} survives!</span>
+          <span className="neon-green pixel text-[1.12rem]">{name(table.winner)} survives!</span>
         </p>
       )}
 

@@ -275,7 +275,7 @@ export default function FourInARow({ code, players, me }: GameProps) {
           role="status"
           className={`rounded-sm bg-[#06030d]/75 px-3 py-1.5 text-center text-sm sm:text-base ${
             table && table.winner !== -1
-              ? "flash-win neon-green pixel text-[0.65rem]"
+              ? "flash-win neon-green pixel text-[1.04rem]"
               : myTurn
                 ? "text-emerald-400"
                 : "text-zinc-300"
@@ -298,7 +298,7 @@ export default function FourInARow({ code, players, me }: GameProps) {
                 onClick={() => play(c)}
                 disabled={!myTurn || table.cols[c].length >= ROWS}
                 aria-label={`Column ${c + 1}`}
-                className="btn-ghost rounded-sm bg-[#06030d]/80 py-3 text-[0.55rem] disabled:opacity-30"
+                className="btn-ghost rounded-sm bg-[#06030d]/80 py-3 text-[0.88rem] disabled:opacity-30"
               >
                 {c + 1}
               </button>

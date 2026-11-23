@@ -178,7 +178,7 @@ export default function Imposter({ code, players, me }: GameProps) {
       </p>
 
       {table && (
-        <div className="flex items-center gap-2 text-[0.6rem]">
+        <div className="flex items-center gap-2 text-[0.96rem]">
           <span className="pixel text-zinc-500">Round {table.n}</span>
           {(["clue", "vote", "reveal"] as const).map((step) => (
             <span
@@ -216,9 +216,9 @@ export default function Imposter({ code, players, me }: GameProps) {
           {!role ? (
             <span className="blink text-zinc-500">Dealing…</span>
           ) : role.imposter ? (
-            <span className="neon-magenta pixel text-[0.7rem]">You are the imposter</span>
+            <span className="neon-magenta pixel text-[1.12rem]">You are the imposter</span>
           ) : (
-            <span className="pixel text-[0.7rem] text-zinc-100">
+            <span className="pixel text-[1.12rem] text-zinc-100">
               Word: <span className="neon-cyan">{role.word}</span>
             </span>
           )}
@@ -255,7 +255,7 @@ export default function Imposter({ code, players, me }: GameProps) {
                 <button
                   onClick={() => vote(p.id)}
                   disabled={!playing || p.id === me.id || !!votes[me.id]}
-                  className="btn-ghost rounded-sm px-2 py-1 text-[0.6rem] disabled:opacity-30"
+                  className="btn-ghost rounded-sm px-2 py-1 text-[0.96rem] disabled:opacity-30"
                 >
                   {votes[me.id] === p.id ? "voted" : "accuse"}
                 </button>

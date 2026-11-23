@@ -1,11 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Press_Start_2P, VT323 } from "next/font/google";
+import { Pixelify_Sans, Press_Start_2P, VT323 } from "next/font/google";
 import "./globals.css";
 import HelpLink from "@/components/HelpLink";
 
 const pressStart = Press_Start_2P({
   variable: "--font-press-start",
   weight: "400",
+  subsets: ["latin"],
+});
+
+const pixel = Pixelify_Sans({
+  variable: "--font-pixel",
+  weight: "variable",
   subsets: ["latin"],
 });
 
@@ -47,7 +53,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${pressStart.variable} ${vt323.variable} h-full antialiased`}
+      className={`${pressStart.variable} ${pixel.variable} ${vt323.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {children}

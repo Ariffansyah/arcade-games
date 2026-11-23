@@ -213,12 +213,12 @@ export default function Yacht({ code, players, me }: GameProps) {
         </div>
         <p
           role="status"
-          className={`pointer-events-none absolute top-3 left-1/2 max-w-[90%] -translate-x-1/2 rounded-sm bg-[#06030d]/75 px-3 py-1.5 text-center text-sm sm:text-base ${table?.done ? "flash-win neon-green pixel text-[0.65rem]" : myTurn ? "text-emerald-400" : "text-zinc-300"}`}
+          className={`pointer-events-none absolute top-3 left-1/2 max-w-[90%] -translate-x-1/2 rounded-sm bg-[#06030d]/75 px-3 py-1.5 text-center text-sm sm:text-base ${table?.done ? "flash-win neon-green pixel text-[1.04rem]" : myTurn ? "text-emerald-400" : "text-zinc-300"}`}
         >
           {status}
         </p>
         {table && !table.done && (
-          <span className="pixel pointer-events-none absolute bottom-3 left-3 rounded-sm bg-[#06030d]/70 px-2 py-1 text-[0.5rem] text-zinc-300">
+          <span className="pixel pointer-events-none absolute bottom-3 left-3 rounded-sm bg-[#06030d]/70 px-2 py-1 text-[0.8rem] text-zinc-300">
             Roll {table.rolls}/{ROLLS}
           </span>
         )}
@@ -256,11 +256,11 @@ export default function Yacht({ code, players, me }: GameProps) {
             <table className="cab mx-auto w-full min-w-[280px] rounded-md text-sm">
               <thead>
                 <tr className="text-zinc-400">
-                  <th className="px-2 py-2 text-left text-[0.5rem]">Box</th>
+                  <th className="px-2 py-2 text-left text-[0.8rem]">Box</th>
                   {order.map((id) => (
                     <th
                       key={id}
-                      className={`px-2 py-2 text-[0.5rem] ${id === up ? "neon-green" : ""} ${id === me.id ? "underline" : ""}`}
+                      className={`px-2 py-2 text-[0.8rem] ${id === up ? "neon-green" : ""} ${id === me.id ? "underline" : ""}`}
                     >
                       {name(id)}
                     </th>
@@ -313,7 +313,7 @@ export default function Yacht({ code, players, me }: GameProps) {
                   })}
                 </tr>
                 <tr className="border-t border-zinc-800">
-                  <td className="pixel px-2 py-2 text-[0.5rem] text-zinc-300">Total</td>
+                  <td className="pixel px-2 py-2 text-[0.8rem] text-zinc-300">Total</td>
                   {order.map((id) => (
                     <td key={id} className="neon-green px-2 py-2 text-center">
                       {totals(table.cards[id]).total}
@@ -328,7 +328,7 @@ export default function Yacht({ code, players, me }: GameProps) {
         {upGone && isHost && table && !table.done && (
           <button
             onClick={() => send(leave(table))}
-            className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
+            className="btn-ghost rounded-sm px-3 py-2 text-[0.88rem]"
           >
             Whoever is up left the room — skip them
           </button>

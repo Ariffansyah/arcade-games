@@ -110,7 +110,7 @@ function Invite({ code }: { code: string }) {
 
   return (
     <span className="flex flex-col items-center gap-1">
-      <button onClick={share} className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]">
+      <button onClick={share} className="btn-ghost rounded-sm px-3 py-2 text-[0.88rem]">
         {state === "copied" ? "Link copied" : "Invite"}
       </button>
       {state === "manual" && (
@@ -140,7 +140,7 @@ function Party({ players, me }: { players: Player[]; me: Player }) {
         >
           <span
             aria-hidden
-            className="pixel flex h-9 w-9 items-center justify-center rounded-sm text-[0.6rem] text-[#06030d]"
+            className="pixel flex h-9 w-9 items-center justify-center rounded-sm text-[0.96rem] text-[#06030d]"
             style={{
               background: SLOT_COLOURS[i % SLOT_COLOURS.length],
               boxShadow: `0 0 12px ${SLOT_COLOURS[i % SLOT_COLOURS.length]}`,
@@ -149,7 +149,7 @@ function Party({ players, me }: { players: Player[]; me: Player }) {
             {p.name.slice(0, 1).toUpperCase()}
           </span>
           <span className="flex flex-col leading-tight">
-            <span className="pixel text-[0.45rem] text-zinc-500">
+            <span className="pixel text-[0.72rem] text-zinc-500">
               P{i + 1}
               {i === 0 && " · host"}
               {p.id === me.id && " · you"}
@@ -159,10 +159,10 @@ function Party({ players, me }: { players: Player[]; me: Player }) {
         </li>
       ))}
       <li className="flex items-center gap-2.5 rounded-md border-2 border-dashed border-zinc-800 py-1.5 pr-4 pl-1.5 text-zinc-600">
-        <span className="pixel flex h-9 w-9 items-center justify-center rounded-sm border-2 border-zinc-800 text-[0.6rem]">
+        <span className="pixel flex h-9 w-9 items-center justify-center rounded-sm border-2 border-zinc-800 text-[0.96rem]">
           +
         </span>
-        <span className="blink pixel text-[0.45rem]">Insert coin</span>
+        <span className="blink pixel text-[0.72rem]">Insert coin</span>
       </li>
     </ul>
   );
@@ -186,7 +186,7 @@ function Loading({ game }: { game: GameInfo }) {
         />
         <span className="pixel neon-cyan text-lg sm:text-2xl">{game.name}</span>
         <span className="text-lg text-zinc-400">
-          <span className="pixel mr-2 text-[0.5rem] text-[color:var(--neon-amber)]">Tip</span>
+          <span className="pixel mr-2 text-[0.8rem] text-[color:var(--neon-amber)]">Tip</span>
           {tip}
         </span>
         <span className="h-1.5 w-full overflow-hidden rounded-sm bg-zinc-900">
@@ -233,7 +233,7 @@ function PauseMenu({
       >
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="pixel neon-magenta text-base">Menu</h2>
-          <span className="pixel text-[0.45rem] text-zinc-500">{game.name}</span>
+          <span className="pixel text-[0.72rem] text-zinc-500">{game.name}</span>
         </div>
         <p className="text-base text-zinc-500">The game keeps running for everyone else.</p>
         <nav className="flex flex-col gap-1.5">
@@ -257,7 +257,7 @@ function PauseMenu({
               }}
               className="menu-row flex flex-col items-start gap-1 rounded-sm px-4 py-3 text-left"
             >
-              <span className="pixel text-[0.7rem] text-zinc-100">{item.label}</span>
+              <span className="pixel text-[1.12rem] text-zinc-100">{item.label}</span>
               {item.hint && (
                 <span className="font-sans text-base normal-case text-zinc-500">{item.hint}</span>
               )}
@@ -276,7 +276,7 @@ function PauseMenu({
               ))}
             </ol>
             <p className="text-zinc-400">
-              <span className="pixel mr-2 text-[0.45rem] text-[color:var(--neon-amber)]">
+              <span className="pixel mr-2 text-[0.72rem] text-[color:var(--neon-amber)]">
                 Scoring
               </span>
               {guide.scoring}
@@ -324,7 +324,7 @@ export default function Lobby({ code }: { code: string }) {
   if (!hydrated)
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <span className="blink pixel text-[0.6rem] text-zinc-500">booting cabinet…</span>
+        <span className="blink pixel text-[0.96rem] text-zinc-500">booting cabinet…</span>
       </main>
     );
 
@@ -348,7 +348,7 @@ export default function Lobby({ code }: { code: string }) {
               sfx.select();
               setPaused(true);
             }}
-            className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-[0.55rem] text-zinc-300 hover:text-emerald-400"
+            className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-[0.88rem] text-zinc-300 hover:text-emerald-400"
             aria-label="Menu"
           >
             <span aria-hidden className="text-base leading-none">
@@ -357,7 +357,7 @@ export default function Lobby({ code }: { code: string }) {
             <span className="hidden sm:inline">Menu</span>
             <kbd className="keycap hidden sm:inline-flex">Esc</kbd>
           </button>
-          <span className="pixel neon-cyan truncate text-[0.6rem] sm:text-[0.7rem]">
+          <span className="pixel neon-cyan truncate text-[0.96rem] sm:text-[1.12rem]">
             {current.name}
           </span>
           <span className="flex items-center gap-1 text-sm text-zinc-400 sm:gap-3">
@@ -439,12 +439,12 @@ export default function Lobby({ code }: { code: string }) {
           <Link
             href="/"
             onClick={() => sfx.back()}
-            className="pixel text-[0.55rem] text-zinc-400 hover:text-emerald-400"
+            className="pixel text-[0.88rem] text-zinc-400 hover:text-emerald-400"
           >
             ← Title
           </Link>
           <div className="col-span-2 row-start-2 flex flex-col items-center gap-1 sm:col-span-1 sm:row-start-1 sm:col-start-2">
-            <span className="pixel text-[0.45rem] tracking-[0.3em] text-zinc-500">Room code</span>
+            <span className="pixel text-[0.72rem] tracking-[0.3em] text-zinc-500">Room code</span>
             <span className="marquee pixel text-xl tracking-[0.2em] sm:text-2xl">{code}</span>
           </div>
           <div className="flex items-center justify-end gap-2">
@@ -454,7 +454,7 @@ export default function Lobby({ code }: { code: string }) {
                 sfx.select();
                 setOptions(true);
               }}
-              className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
+              className="btn-ghost rounded-sm px-3 py-2 text-[0.88rem]"
             >
               Settings
             </button>

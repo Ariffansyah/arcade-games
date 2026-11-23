@@ -109,7 +109,7 @@ export default function QuickDraw({ code, players, me }: GameProps) {
         onClick={shoot}
         disabled={!goAt || !!mine}
         aria-label="Hit it"
-        className={`flex h-56 w-full max-w-md items-center justify-center rounded-md border-2 pixel text-[0.7rem] transition-colors ${
+        className={`flex h-56 w-full max-w-md items-center justify-center rounded-md border-2 pixel text-[1.12rem] transition-colors ${
           lit
             ? "border-emerald-500 bg-emerald-500 text-[#04120a] shadow-[0_0_40px_var(--color-emerald-500)]"
             : goAt

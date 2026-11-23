@@ -146,7 +146,7 @@ export default function Scatter({ code, players, me }: GameProps) {
       {table && card && (
         <div className="cab flex w-full flex-col gap-3 rounded-md p-5">
           <div className="flex items-center justify-between">
-            <span className="pixel text-[0.55rem] text-zinc-500">Round {table.round}</span>
+            <span className="pixel text-[0.88rem] text-zinc-500">Round {table.round}</span>
             <span className="neon-magenta pixel text-2xl">{card.letter.toUpperCase()}</span>
             <span className={`font-mono ${left < 15000 ? "text-red-400" : "text-zinc-400"}`}>
               {Math.ceil(left / 1000)}s

@@ -4,6 +4,7 @@
   --font-sans: var(--font-vt323), ui-monospace, monospace;
   --font-mono: var(--font-vt323), ui-monospace, monospace;
   --font-display: var(--font-press-start), ui-monospace, monospace;
+  --font-pixelify: var(--font-pixel), ui-monospace, monospace;
 }
 
 @theme {
@@ -11,8 +12,8 @@
   --color-zinc-950: #06030d;
   --color-zinc-900: #120b22;
   --color-zinc-800: #1d1236;
-  --color-zinc-700: #2f1f57;
-  --color-zinc-600: #4a3480;
+  --color-zinc-700: #45317a;
+  --color-zinc-600: #6f58a6;
   --color-zinc-500: #8b76c9;
   --color-zinc-400: #b3a3e6;
   --color-zinc-300: #d6ccff;
@@ -47,7 +48,7 @@ body {
   background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-vt323), ui-monospace, monospace;
-  font-size: 1.06rem;
+  font-size: 1.2rem;
   letter-spacing: 0.02em;
 }
 
@@ -60,12 +61,12 @@ body::after {
   background:
     repeating-linear-gradient(
       to bottom,
-      rgba(0, 0, 0, 0.28) 0px,
-      rgba(0, 0, 0, 0.28) 1px,
+      rgba(0, 0, 0, 0.15) 0px,
+      rgba(0, 0, 0, 0.15) 1px,
       transparent 1px,
       transparent 3px
     ),
-    radial-gradient(130% 100% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.65) 100%);
+    radial-gradient(130% 100% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.42) 100%);
   mix-blend-mode: multiply;
   animation: crt-flicker 5.5s steps(60) infinite;
 }
@@ -94,8 +95,13 @@ body::after {
 }
 
 @layer base {
-  h1, h2, h3, button, input, label, .pixel {
+  h1 {
     font-family: var(--font-press-start), ui-monospace, monospace;
+    letter-spacing: 0.04em;
+  }
+
+  h2, h3, button, input, label, .pixel {
+    font-family: var(--font-pixel), ui-monospace, monospace;
     letter-spacing: 0.04em;
   }
 
@@ -136,10 +142,11 @@ body::after {
 
   .marquee {
     color: #fff;
+    font-family: var(--font-press-start), ui-monospace, monospace;
     text-shadow:
-      0 0 4px #fff,
-      0 0 12px var(--neon-magenta),
-      0 0 26px var(--neon-magenta),
+      0 0 3px #fff,
+      0 0 8px var(--neon-magenta),
+      0 0 16px var(--neon-magenta),
       3px 3px 0 var(--neon-cyan),
       -3px -3px 0 var(--neon-amber);
     animation: marquee-pulse 3.2s ease-in-out infinite;
@@ -147,15 +154,15 @@ body::after {
 
   .neon-cyan {
     color: var(--neon-cyan);
-    text-shadow: 0 0 6px currentColor, 0 0 18px currentColor;
+    text-shadow: 0 0 4px currentColor, 0 0 10px currentColor;
   }
   .neon-magenta {
     color: var(--neon-magenta);
-    text-shadow: 0 0 6px currentColor, 0 0 18px currentColor;
+    text-shadow: 0 0 4px currentColor, 0 0 10px currentColor;
   }
   .neon-green {
     color: var(--color-emerald-500);
-    text-shadow: 0 0 6px currentColor, 0 0 18px currentColor;
+    text-shadow: 0 0 4px currentColor, 0 0 10px currentColor;
   }
 
   .cab {
@@ -241,8 +248,8 @@ body::after {
     border-bottom-width: 4px;
     border-radius: 3px;
     background: #120b22;
-    font-family: var(--font-press-start), ui-monospace, monospace;
-    font-size: 0.45rem;
+    font-family: var(--font-pixel), ui-monospace, monospace;
+    font-size: 0.72rem;
     color: var(--color-zinc-300);
   }
 
@@ -498,8 +505,8 @@ body::after {
     border: 1px solid var(--color-zinc-700);
     border-radius: 2px;
     padding: 0.1rem 0.4rem;
-    font-family: var(--font-press-start), ui-monospace, monospace;
-    font-size: 0.45rem;
+    font-family: var(--font-pixel), ui-monospace, monospace;
+    font-size: 0.72rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--color-zinc-400);
@@ -573,8 +580,8 @@ body::after {
   border-radius: 3px 3px 0 0;
   background: linear-gradient(180deg, #2a8fd6, #1b5d9c);
   box-shadow: 0 2px 0 #06030d;
-  font-family: var(--font-press-start), ui-monospace, monospace;
-  font-size: 0.45rem;
+  font-family: var(--font-pixel), ui-monospace, monospace;
+  font-size: 0.72rem;
   color: #f7f3ff;
   white-space: nowrap;
 }
@@ -593,7 +600,7 @@ body::after {
   border-radius: 4px;
   background: #f7f3ff;
   color: #06030d;
-  font-size: 0.6rem;
+  font-size: 0.96rem;
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.5);
 }
 .card-ink {
@@ -788,7 +795,7 @@ body::after {
   border-radius: 4px;
   color: var(--color-red-500);
   letter-spacing: 0.14em;
-  text-shadow: 0 0 8px currentColor, 0 0 22px currentColor;
+  text-shadow: 0 0 5px currentColor, 0 0 12px currentColor;
   box-shadow: inset 0 0 16px rgba(255, 46, 99, 0.25);
 }
 

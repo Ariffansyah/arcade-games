@@ -104,7 +104,7 @@ export default function BlindMaze({ code, players, me }: GameProps) {
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <span className="pixel text-[0.55rem] text-zinc-500">At the controls</span>
+        <span className="pixel text-[0.88rem] text-zinc-500">At the controls</span>
         {players.map((p) => (
           <button
             key={p.id}

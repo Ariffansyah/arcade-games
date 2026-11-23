@@ -50,7 +50,7 @@ function Menu({ items }: { items: Item[] }) {
             at === i ? "menu-row-on" : ""
           }`}
         >
-          <span aria-hidden className={`pixel text-[0.7rem] ${at === i ? "neon-magenta" : "opacity-0"}`}>
+          <span aria-hidden className={`pixel text-[1.12rem] ${at === i ? "neon-magenta" : "opacity-0"}`}>
             ▶
           </span>
           <span className="flex flex-col gap-1">
@@ -151,7 +151,7 @@ export default function Home() {
           className="relative z-10 flex min-h-dvh w-full flex-col items-center justify-between px-4 pt-[9vh] pb-[8vh] normal-case"
         >
           <span className="flex flex-col items-center gap-4">
-            <span className="neon-cyan pixel text-[0.6rem] tracking-[0.4em]">
+            <span className="neon-cyan pixel text-[0.96rem] tracking-[0.4em]">
               {GAMES.length} cabinets · one room code
             </span>
             <span className="marquee hum pixel text-4xl sm:text-6xl">Web Arcade</span>
@@ -173,7 +173,7 @@ export default function Home() {
               aria-label="Back to the main menu"
             >
               <span className="marquee pixel text-2xl sm:text-4xl">Web Arcade</span>
-              <span className="neon-cyan pixel text-[0.5rem] tracking-[0.3em]">
+              <span className="neon-cyan pixel text-[0.8rem] tracking-[0.3em]">
                 {screen === "main" ? "Main menu" : screen === "join" ? "Join a room" : "Game library"}
               </span>
             </button>
@@ -182,11 +182,11 @@ export default function Home() {
               className="cab mr-10 hidden items-center gap-3 rounded-md px-3 py-2 normal-case sm:flex"
               aria-label="Profile and settings"
             >
-              <span className="pixel flex h-8 w-8 items-center justify-center rounded-sm bg-[color:var(--neon-magenta)] text-[0.6rem] text-[#06030d]">
+              <span className="pixel flex h-8 w-8 items-center justify-center rounded-sm bg-[color:var(--neon-magenta)] text-[0.96rem] text-[#06030d]">
                 {(cleanName(nick) || "?").slice(0, 1).toUpperCase()}
               </span>
               <span className="flex flex-col items-start">
-                <span className="pixel text-[0.45rem] text-zinc-500">Player</span>
+                <span className="pixel text-[0.72rem] text-zinc-500">Player</span>
                 <span className="text-lg text-zinc-200">{cleanName(nick) || "No name yet"}</span>
               </span>
             </button>
@@ -209,7 +209,7 @@ export default function Home() {
               className="menu-in cab flex w-full max-w-md flex-col gap-5 self-start rounded-md p-6"
             >
               <label className="flex flex-col gap-2">
-                <span className="pixel text-[0.55rem] text-zinc-400">Your nickname</span>
+                <span className="pixel text-[0.88rem] text-zinc-400">Your nickname</span>
                 <input
                   value={nick}
                   onChange={(e) => setNick(cleanName(e.target.value))}
@@ -220,7 +220,7 @@ export default function Home() {
                 />
               </label>
               <label className="flex flex-col gap-2">
-                <span className="pixel text-[0.55rem] text-zinc-400">Room code</span>
+                <span className="pixel text-[0.88rem] text-zinc-400">Room code</span>
                 <input
                   value={code}
                   onChange={(e) => setCode(cleanCode(e.target.value))}

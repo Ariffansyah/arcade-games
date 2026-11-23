@@ -104,7 +104,7 @@ export default function GameSelect({
               setFilter(f.id);
               sfx.move();
             }}
-            className={`menu-item rounded-sm px-3 py-2 text-[0.5rem] sm:text-[0.55rem] ${
+            className={`menu-item rounded-sm px-3 py-2 text-[0.8rem] sm:text-[0.88rem] ${
               filter === f.id ? "menu-item-on" : "text-zinc-400"
             }`}
           >
@@ -136,7 +136,7 @@ export default function GameSelect({
             >
               <Cover game={g} className="aspect-[12/7] w-36 rounded-sm sm:w-48" />
               <span
-                className={`pixel truncate text-[0.45rem] ${on ? "neon-cyan" : "text-zinc-400"}`}
+                className={`pixel truncate text-[0.72rem] ${on ? "neon-cyan" : "text-zinc-400"}`}
               >
                 {g.name}
               </span>
@@ -167,11 +167,11 @@ export default function GameSelect({
           {guide && (
             <>
               <p className="text-sm text-zinc-400">
-                <span className="pixel mr-2 text-[0.45rem] text-[color:var(--neon-amber)]">Goal</span>
+                <span className="pixel mr-2 text-[0.72rem] text-[color:var(--neon-amber)]">Goal</span>
                 {guide.goal}
               </p>
               <p className="text-sm text-zinc-500">
-                <span className="pixel mr-2 text-[0.45rem] text-[color:var(--neon-cyan)]">Tip</span>
+                <span className="pixel mr-2 text-[0.72rem] text-[color:var(--neon-cyan)]">Tip</span>
                 {guide.tips[0]}
               </p>
             </>
@@ -180,7 +180,7 @@ export default function GameSelect({
             <button
               onClick={play}
               disabled={short}
-              className="btn-arcade play-pulse rounded-sm px-6 py-3 text-[0.7rem] disabled:opacity-40"
+              className="btn-arcade play-pulse rounded-sm px-6 py-3 text-[1.12rem] disabled:opacity-40"
             >
               {short ? `Needs ${game.seats} players` : `▶ ${action}`}
             </button>
@@ -189,7 +189,7 @@ export default function GameSelect({
               target="_blank"
               rel="noreferrer"
               onClick={() => sfx.select()}
-              className="btn-ghost pixel rounded-sm px-4 py-3 text-[0.6rem] uppercase"
+              className="btn-ghost pixel rounded-sm px-4 py-3 text-[0.96rem] uppercase"
             >
               Rules
             </a>

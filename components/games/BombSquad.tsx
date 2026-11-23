@@ -219,7 +219,7 @@ export default function BombSquad({ code, players, me }: GameProps) {
           }`}
         >
           <div className="flex items-center justify-between gap-3">
-            <span className="bomb-serial px-2 py-1 font-mono text-[0.7rem]">{bomb.serial}</span>
+            <span className="bomb-serial px-2 py-1 font-mono text-[1.12rem]">{bomb.serial}</span>
             <span className="readout px-3 py-1 font-mono text-2xl leading-none">
               {live ? clock(seconds) : "0:00"}
             </span>
@@ -246,11 +246,11 @@ export default function BombSquad({ code, players, me }: GameProps) {
                   }`}
                 >
                   <header className="flex items-center justify-between">
-                    <span className="pixel text-[0.5rem] text-zinc-500">
+                    <span className="pixel text-[0.8rem] text-zinc-500">
                       {KIND_NAMES[m.kind]}
                     </span>
                     <span className="flex items-center gap-2">
-                      <span className="font-mono text-[0.7rem] text-zinc-600">
+                      <span className="font-mono text-[1.12rem] text-zinc-600">
                         {done.length}/{target(m)}
                       </span>
                       <span className={`led ${finished ? "led-green" : ""}`} />
@@ -292,7 +292,7 @@ export default function BombSquad({ code, players, me }: GameProps) {
 
           <div className="manual flex flex-col gap-4 p-5">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-              <span className="pixel text-[0.5rem] text-[color:var(--neon-amber)]">
+              <span className="pixel text-[0.8rem] text-[color:var(--neon-amber)]">
                 Defusal manual — section {tab + 1}
               </span>
               <span className="flex gap-1.5" aria-label={`${table.strikes} strikes`}>
@@ -523,7 +523,7 @@ function MemoryPanel({ module: m, done, live, onInput }: PanelProps & { module: 
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="flex items-center gap-4">
-        <span className="pixel text-[0.55rem] text-zinc-500">Stage {stage + 1} of 5</span>
+        <span className="pixel text-[0.88rem] text-zinc-500">Stage {stage + 1} of 5</span>
         <span className="rounded-sm border border-zinc-700 px-4 py-2 font-mono text-2xl text-emerald-400">
           {here.display}
         </span>
@@ -681,7 +681,7 @@ function Manual({ bomb, module: m }: { bomb: Bomb; module: Module }) {
       <div className="flex flex-col gap-2">
         {memoryStepText(bomb.memoryStepOrder).map((stage, s) => (
           <div key={s} className="grid grid-cols-[auto_1fr] gap-2 text-xs">
-            <span className="pixel text-[0.5rem] text-zinc-500">S{s + 1}</span>
+            <span className="pixel text-[0.8rem] text-zinc-500">S{s + 1}</span>
             <ul className="flex flex-col gap-0.5">
               {stage.map((text, d) => (
                 <li key={d}>

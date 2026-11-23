@@ -118,7 +118,7 @@ export default function Chain({ code, players, me }: GameProps) {
 
       {table && !table.winner && (
         <div className="flex flex-col items-center gap-3">
-          <span className="pixel text-[0.6rem] text-zinc-400">
+          <span className="pixel text-[0.96rem] text-zinc-400">
             Round {table.round} · {table.level} pads
           </span>
           <span className="text-sm text-zinc-400">
@@ -156,7 +156,7 @@ export default function Chain({ code, players, me }: GameProps) {
       )}
 
       {table?.winner && (
-        <p className="flash-win neon-green pixel text-center text-[0.7rem]">
+        <p className="flash-win neon-green pixel text-center text-[1.12rem]">
           {name(table.winner)} remembers everything!
         </p>
       )}

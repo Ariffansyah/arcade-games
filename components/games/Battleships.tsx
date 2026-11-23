@@ -36,7 +36,7 @@ function report(fleet: Fleet) {
 function Panel({ label, data }: { label: string; data: ReturnType<typeof report> }) {
   return (
     <dl className="cab grid w-full max-w-[340px] grid-cols-2 gap-x-3 gap-y-1 rounded-md px-3 py-2 text-xs">
-      <dt className="col-span-2 pixel text-[0.55rem] text-zinc-500">{label}</dt>
+      <dt className="col-span-2 pixel text-[0.88rem] text-zinc-500">{label}</dt>
       <dt className="text-zinc-500">Shots</dt>
       <dd className="text-right text-zinc-200">{data.shots}</dd>
       <dt className="text-zinc-500">Hits / misses</dt>
@@ -236,7 +236,7 @@ export default function Battleships({ code, slot, players }: GameProps) {
       {slot === 1 && (
         <button
           onClick={() => write(newGame(`${code}-${Date.now()}`))}
-          className="btn-ghost rounded-sm px-3 py-2 text-[0.6rem]"
+          className="btn-ghost rounded-sm px-3 py-2 text-[0.96rem]"
         >
           New game
         </button>

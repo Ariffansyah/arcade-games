@@ -68,11 +68,11 @@ export default function TallTale({ code, players, me }: GameProps) {
       {table && (
         <div className="cab flex w-full flex-col gap-4 rounded-md p-5">
           <div className="flex items-center justify-between">
-            <span className="pixel text-[0.55rem] text-zinc-500">
+            <span className="pixel text-[0.88rem] text-zinc-500">
               Line {Math.min(at + 1, table.total)} of {table.total}
             </span>
             {!done && (
-              <span className="pixel text-[0.55rem] text-zinc-500">
+              <span className="pixel text-[0.88rem] text-zinc-500">
                 {myTurn ? "your turn" : `${name(onClock)}'s turn`}
               </span>
             )}
@@ -90,7 +90,7 @@ export default function TallTale({ code, players, me }: GameProps) {
             <>
               <p className="text-center font-sans text-sm text-zinc-400">
                 Your word:{" "}
-                <span className="neon-magenta pixel text-[0.7rem]">{word}</span>
+                <span className="neon-magenta pixel text-[1.12rem]">{word}</span>
               </p>
               <form
                 onSubmit={(e) => {

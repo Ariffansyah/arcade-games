@@ -677,7 +677,7 @@ export default function Topple({ code, players, me }: GameProps) {
           role="status"
           className={`rounded-sm bg-[#06030d]/75 px-3 py-1.5 text-center text-sm sm:text-base ${
             table?.loser
-              ? "flash-win pixel text-[0.65rem] text-red-400"
+              ? "flash-win pixel text-[1.04rem] text-red-400"
               : myTurn
                 ? "text-emerald-400"
                 : "text-zinc-300"
@@ -688,7 +688,7 @@ export default function Topple({ code, players, me }: GameProps) {
       </div>
 
       {table && !table.loser && (
-        <span className="pixel pointer-events-none absolute bottom-3 left-3 rounded-sm bg-[#06030d]/70 px-2 py-1 text-[0.5rem] text-zinc-300">
+        <span className="pixel pointer-events-none absolute bottom-3 left-3 rounded-sm bg-[#06030d]/70 px-2 py-1 text-[0.8rem] text-zinc-300">
           {height(table.poses)} levels · {table.pulls} pulls
         </span>
       )}
@@ -697,7 +697,7 @@ export default function Topple({ code, players, me }: GameProps) {
         {upGone && isHost && table && !table.loser && (
           <button
             onClick={() => send(leave(table))}
-            className="btn-ghost rounded-sm bg-[#06030d]/80 px-3 py-2 text-[0.55rem]"
+            className="btn-ghost rounded-sm bg-[#06030d]/80 px-3 py-2 text-[0.88rem]"
           >
             Whoever is up left the room — skip them
           </button>

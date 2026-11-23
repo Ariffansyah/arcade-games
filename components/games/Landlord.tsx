@@ -732,7 +732,7 @@ export default function Landlord({ code, players, me }: GameProps) {
             </p>
           )}
           {table && !table.winner && (
-            <span className="pixel pointer-events-none absolute bottom-3 left-3 hidden text-[0.5rem] text-zinc-400 sm:block">
+            <span className="pixel pointer-events-none absolute bottom-3 left-3 hidden text-[0.8rem] text-zinc-400 sm:block">
               Tap a square for its deed · drag to turn the board
             </span>
           )}
@@ -750,13 +750,13 @@ export default function Landlord({ code, players, me }: GameProps) {
             >
               <span
                 aria-hidden
-                className="pixel flex h-10 w-8 shrink-0 items-center justify-center rounded-sm text-[0.7rem]"
+                className="pixel flex h-10 w-8 shrink-0 items-center justify-center rounded-sm text-[1.12rem]"
                 style={{ background: DECKS[table.drew.deck].colour }}
               >
                 {DECKS[table.drew.deck].glyph}
               </span>
               <span className="text-sm leading-tight">
-                <span className="pixel block text-[0.45rem]" style={{ color: "#4a3480" }}>
+                <span className="pixel block text-[0.72rem]" style={{ color: "#4a3480" }}>
                   {name(table.drew.by)} drew {DECKS[table.drew.deck].name}
                 </span>
                 {drewCard.text}
@@ -768,7 +768,7 @@ export default function Landlord({ code, players, me }: GameProps) {
           role="status"
           className={`pointer-events-none absolute top-3 left-1/2 max-w-[92%] -translate-x-1/2 rounded-sm bg-[#06030d]/75 px-3 py-1.5 text-center text-sm sm:text-base ${
             table?.winner
-              ? "flash-win neon-green pixel text-[0.65rem]"
+              ? "flash-win neon-green pixel text-[1.04rem]"
               : myTurn || bidder === me.id || trade?.to === me.id
                 ? "text-emerald-400"
                 : "text-zinc-400"
@@ -893,7 +893,7 @@ export default function Landlord({ code, players, me }: GameProps) {
               <DeedCard i={auction.space} g={table} name={name} />
             </div>
             <div className="flex flex-1 flex-col gap-2 text-sm">
-              <h3 className="pixel text-[0.55rem] text-[color:var(--neon-amber)]">Auction</h3>
+              <h3 className="pixel text-[0.88rem] text-[color:var(--neon-amber)]">Auction</h3>
               <p className="text-zinc-200">
                 {auction.leader
                   ? `Top bid $${auction.bid} — ${name(auction.leader)}`
@@ -909,14 +909,14 @@ export default function Landlord({ code, players, me }: GameProps) {
                       key={step}
                       onClick={() => send(bid(table, auction.bid + step))}
                       disabled={auction.bid + step > table.cash[me.id]}
-                      className="btn-arcade rounded-sm px-3 py-2 text-[0.55rem] disabled:opacity-40"
+                      className="btn-arcade rounded-sm px-3 py-2 text-[0.88rem] disabled:opacity-40"
                     >
                       Bid ${auction.bid + step}
                     </button>
                   ))}
                   <button
                     onClick={() => send(fold(table))}
-                    className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
+                    className="btn-ghost rounded-sm px-3 py-2 text-[0.88rem]"
                   >
                     Drop out
                   </button>
@@ -931,7 +931,7 @@ export default function Landlord({ code, players, me }: GameProps) {
         {table && deal && myTurn && !offer && (
           <section className="cab flex w-full flex-col gap-3 rounded-md p-4" aria-label="Trade">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="pixel text-[0.55rem] text-[color:var(--neon-cyan)]">Trade with</h3>
+              <h3 className="pixel text-[0.88rem] text-[color:var(--neon-cyan)]">Trade with</h3>
               <select
                 value={dealTo}
                 onChange={(e) => setDeal({ ...deal, to: e.target.value, get: [], ask: 0 })}
@@ -1016,13 +1016,13 @@ export default function Landlord({ code, players, me }: GameProps) {
                   setDeal(null);
                 }}
                 disabled={!pitchOk}
-                className="btn-arcade rounded-sm px-4 py-2 text-[0.55rem] disabled:opacity-40"
+                className="btn-arcade rounded-sm px-4 py-2 text-[0.88rem] disabled:opacity-40"
               >
                 Send offer
               </button>
               <button
                 onClick={() => setDeal(null)}
-                className="btn-ghost rounded-sm px-4 py-2 text-[0.55rem]"
+                className="btn-ghost rounded-sm px-4 py-2 text-[0.88rem]"
               >
                 Cancel
               </button>
@@ -1035,7 +1035,7 @@ export default function Landlord({ code, players, me }: GameProps) {
             Offer sent to {name(trade.to)}.
             <button
               onClick={() => send(withdraw(table))}
-              className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
+              className="btn-ghost rounded-sm px-3 py-2 text-[0.88rem]"
             >
               Withdraw
             </button>
@@ -1049,7 +1049,7 @@ export default function Landlord({ code, players, me }: GameProps) {
             className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4"
           >
             <div className="cab flex w-full max-w-md flex-col gap-4 rounded-md p-5">
-              <h3 className="pixel text-[0.6rem] text-[color:var(--neon-cyan)]">
+              <h3 className="pixel text-[0.96rem] text-[color:var(--neon-cyan)]">
                 {name(trade.from)} offers a trade
               </h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -1108,7 +1108,7 @@ export default function Landlord({ code, players, me }: GameProps) {
                         {canBuild(table, selected) && (
                           <button
                             onClick={() => send(build(table, selected))}
-                            className="btn-arcade rounded-sm px-3 py-2 text-[0.5rem]"
+                            className="btn-arcade rounded-sm px-3 py-2 text-[0.8rem]"
                           >
                             Build {(table.houses[selected] ?? 0) === HOTEL - 1 ? "hotel" : "house"}{" "}
                             · ${space.house}
@@ -1117,7 +1117,7 @@ export default function Landlord({ code, players, me }: GameProps) {
                         {canSell(table, selected) && (
                           <button
                             onClick={() => send(sell(table, selected))}
-                            className="btn-ghost rounded-sm px-3 py-2 text-[0.5rem]"
+                            className="btn-ghost rounded-sm px-3 py-2 text-[0.8rem]"
                           >
                             Sell building · +${space.house! / 2}
                           </button>
@@ -1125,7 +1125,7 @@ export default function Landlord({ code, players, me }: GameProps) {
                         {canMortgage(table, selected) && (
                           <button
                             onClick={() => send(mortgage(table, selected))}
-                            className="btn-ghost rounded-sm px-3 py-2 text-[0.5rem]"
+                            className="btn-ghost rounded-sm px-3 py-2 text-[0.8rem]"
                           >
                             Mortgage · +${mortgageValue(selected)}
                           </button>
@@ -1134,7 +1134,7 @@ export default function Landlord({ code, players, me }: GameProps) {
                           <button
                             onClick={() => send(lift(table, selected))}
                             disabled={!canLift(table, selected)}
-                            className="btn-ghost rounded-sm px-3 py-2 text-[0.5rem] disabled:opacity-40"
+                            className="btn-ghost rounded-sm px-3 py-2 text-[0.8rem] disabled:opacity-40"
                           >
                             Pay off · ${liftCost(selected)}
                           </button>
@@ -1177,7 +1177,7 @@ export default function Landlord({ code, players, me }: GameProps) {
                         key={i}
                         onClick={() => setPicked(i)}
                         aria-pressed={selected === i}
-                        className={`flex w-[4.6rem] flex-col overflow-hidden rounded-sm bg-[#f7f3ff] text-left text-[0.42rem] leading-snug normal-case text-[#120b22] ${
+                        className={`flex w-[4.6rem] flex-col overflow-hidden rounded-sm bg-[#f7f3ff] text-left text-[0.67rem] leading-snug normal-case text-[#120b22] ${
                           table.mortgaged[i] ? "opacity-45" : ""
                         } ${selected === i ? "outline-2 outline-offset-2 outline-emerald-500" : ""}`}
                       >
@@ -1200,7 +1200,7 @@ export default function Landlord({ code, players, me }: GameProps) {
             </section>
 
             <section className="cab flex flex-col gap-1 rounded-md p-4" aria-label="What happened">
-              <h3 className="pixel text-[0.5rem] text-zinc-500">What happened</h3>
+              <h3 className="pixel text-[0.8rem] text-zinc-500">What happened</h3>
               <ol className="flex flex-col gap-1 text-sm text-zinc-300">
                 {table.log.length ? (
                   table.log.map((line, n) => (
@@ -1222,7 +1222,7 @@ export default function Landlord({ code, players, me }: GameProps) {
         {upGone && isHost && table && !table.winner && (
           <button
             onClick={() => send(leave(table))}
-            className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
+            className="btn-ghost rounded-sm px-3 py-2 text-[0.88rem]"
           >
             {auction
               ? "The bidder left the room — drop them out"
@@ -1235,7 +1235,7 @@ export default function Landlord({ code, players, me }: GameProps) {
         {isHost && table && !table.winner && active(table).length > 1 && (
           <button
             onClick={() => send(finish(table))}
-            className="btn-ghost btn-danger rounded-sm px-3 py-2 text-[0.55rem]"
+            className="btn-ghost btn-danger rounded-sm px-3 py-2 text-[0.88rem]"
           >
             Call it — richest on paper wins
           </button>
@@ -1302,8 +1302,8 @@ function DeedCard({ i, g, name }: { i: number; g: Game; name: (id?: string) => s
           className="-mx-3 mb-2 border-b-2 border-[#120b22] px-2 py-1.5"
           style={{ background: bandOf(i) }}
         >
-          <div className="pixel text-[0.38rem] tracking-widest">Title deed</div>
-          <div className="pixel mt-1 text-[0.55rem] leading-relaxed">{s.name}</div>
+          <div className="pixel text-[0.61rem] tracking-widest">Title deed</div>
+          <div className="pixel mt-1 text-[0.88rem] leading-relaxed">{s.name}</div>
         </div>
         <table className="w-full text-sm leading-tight">
           <tbody>
@@ -1326,7 +1326,7 @@ function DeedCard({ i, g, name }: { i: number; g: Game; name: (id?: string) => s
         </div>
       </div>
       {g.mortgaged[i] && (
-        <span className="pixel absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 rounded-sm border-2 border-[#e11d48] bg-[#f7f3ff]/85 px-2 py-1 text-[0.55rem] text-[#e11d48]">
+        <span className="pixel absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 rounded-sm border-2 border-[#e11d48] bg-[#f7f3ff]/85 px-2 py-1 text-[0.88rem] text-[#e11d48]">
           Mortgaged
         </span>
       )}

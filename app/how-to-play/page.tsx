@@ -36,7 +36,7 @@ export default function HowToPlay() {
       <div className="grid-floor pointer-events-none absolute inset-x-0 bottom-0 h-2/3" />
 
       <header className="relative flex max-w-2xl flex-col items-center gap-3 pt-6 text-center">
-        <span className="neon-cyan pixel text-[0.6rem] tracking-[0.35em]">
+        <span className="neon-cyan pixel text-[0.96rem] tracking-[0.35em]">
           {GAMES.length} cabinets · every rule
         </span>
         <h1 className="marquee hum text-3xl sm:text-4xl">How to play</h1>
@@ -75,7 +75,7 @@ export default function HowToPlay() {
       <BombManual />
       <MaydayPanel />
 
-      <footer className="relative pb-4 text-center text-[0.6rem] text-zinc-600">
+      <footer className="relative pb-4 text-center text-[0.96rem] text-zinc-600">
         Rooms are not listed anywhere. Close the tab and the room is gone.
       </footer>
     </main>
@@ -94,7 +94,7 @@ function Section({
   return (
     <section className="relative flex w-full max-w-3xl flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 className="pixel text-[0.7rem] text-[color:var(--neon-amber)]">{title}</h2>
+        <h2 className="pixel text-[1.12rem] text-[color:var(--neon-amber)]">{title}</h2>
         <p className="text-xs text-zinc-600">{blurb}</p>
       </div>
       {games.map((g) => {
@@ -106,7 +106,7 @@ function Section({
                 {g.art}
               </span>
               <h3 className="text-xl text-zinc-100">{g.name}</h3>
-              <span className="pixel text-[0.5rem] text-zinc-600">
+              <span className="pixel text-[0.8rem] text-zinc-600">
                 {seatLabel(g)} · {moodLabel(g)}
               </span>
             </header>
@@ -114,7 +114,7 @@ function Section({
             <p className="text-sm text-zinc-300">{guide.goal}</p>
 
             <div className="flex flex-col gap-1">
-              <h4 className="pixel text-[0.5rem] text-zinc-500">A round</h4>
+              <h4 className="pixel text-[0.8rem] text-zinc-500">A round</h4>
               <ol className="flex flex-col gap-1 text-sm text-zinc-400">
                 {guide.round.map((line, i) => (
                   <li key={i} className="flex gap-2">
@@ -126,12 +126,12 @@ function Section({
             </div>
 
             <div className="flex flex-col gap-1">
-              <h4 className="pixel text-[0.5rem] text-zinc-500">Scoring</h4>
+              <h4 className="pixel text-[0.8rem] text-zinc-500">Scoring</h4>
               <p className="text-sm text-zinc-400">{guide.scoring}</p>
             </div>
 
             <div className="flex flex-col gap-1">
-              <h4 className="pixel text-[0.5rem] text-zinc-500">Worth knowing</h4>
+              <h4 className="pixel text-[0.8rem] text-zinc-500">Worth knowing</h4>
               <ul className="flex flex-col gap-1 text-sm text-zinc-400">
                 {guide.tips.map((tip, i) => (
                   <li key={i} className="flex gap-2">
@@ -163,7 +163,7 @@ function BombManual() {
   return (
     <section id="bomb-manual" className="relative flex w-full max-w-3xl flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 className="pixel text-[0.7rem] text-[color:var(--neon-amber)]">
+        <h2 className="pixel text-[1.12rem] text-[color:var(--neon-amber)]">
           Bomb Squad — the manual
         </h2>
         <p className="text-xs text-zinc-600">
@@ -172,7 +172,7 @@ function BombManual() {
       </div>
 
       <div className="manual flex flex-col gap-3 p-5">
-        <h3 className="pixel text-[0.55rem] text-zinc-400">Settings</h3>
+        <h3 className="pixel text-[0.88rem] text-zinc-400">Settings</h3>
         <ul className="flex flex-col gap-1 text-sm text-zinc-400">
           {(Object.keys(BOMB_DIFFICULTY) as BombDifficulty[]).map((d) => {
             const spec = BOMB_DIFFICULTY[d];
@@ -192,7 +192,7 @@ function BombManual() {
       </div>
 
       <div className="manual flex flex-col gap-3 p-5">
-        <h3 className="pixel text-[0.55rem] text-zinc-400">Wires</h3>
+        <h3 className="pixel text-[0.88rem] text-zinc-400">Wires</h3>
         <p className="text-xs text-zinc-600">
           Read in order; the first rule that fits is the answer. A cut wire stops counting, so the
           whole list is re-read after every cut. The priority order below reshuffles every bomb —
@@ -209,7 +209,7 @@ function BombManual() {
       </div>
 
       <div className="manual flex flex-col gap-3 p-5">
-        <h3 className="pixel text-[0.55rem] text-zinc-400">Keypad</h3>
+        <h3 className="pixel text-[0.88rem] text-zinc-400">Keypad</h3>
         <p className="text-xs text-zinc-600">
           Exactly one column holds all four of the holder&apos;s symbols. Find it, then press them
           top to bottom in that column&apos;s order.
@@ -217,10 +217,10 @@ function BombManual() {
         <div className="flex flex-wrap justify-center gap-8">
           {COLUMNS.map((column, c) => (
             <ol key={c} className="flex flex-col gap-1 text-center">
-              <li className="pixel text-[0.45rem] text-zinc-600">col {c + 1}</li>
+              <li className="pixel text-[0.72rem] text-zinc-600">col {c + 1}</li>
               {column.map((g) => (
                 <li key={g} className="text-lg text-zinc-300" title={GLYPHS[g]}>
-                  {g} <span className="text-[0.6rem] text-zinc-600">{GLYPHS[g]}</span>
+                  {g} <span className="text-[0.96rem] text-zinc-600">{GLYPHS[g]}</span>
                 </li>
               ))}
             </ol>
@@ -229,7 +229,7 @@ function BombManual() {
       </div>
 
       <div className="manual flex flex-col gap-3 p-5">
-        <h3 className="pixel text-[0.55rem] text-zinc-400">Button</h3>
+        <h3 className="pixel text-[0.88rem] text-zinc-400">Button</h3>
         <p className="text-xs text-zinc-600">
           Priority order reshuffles every bomb too — this is just the reference list.
         </p>
@@ -254,7 +254,7 @@ function BombManual() {
       </div>
 
       <div className="manual flex flex-col gap-3 p-5">
-        <h3 className="pixel text-[0.55rem] text-zinc-400">Memory</h3>
+        <h3 className="pixel text-[0.88rem] text-zinc-400">Memory</h3>
         <p className="text-xs text-zinc-600">
           Five stages. Positions are left to right; the labels move every stage, so write down
           what you pressed. A strike wipes the panel back to stage one.
@@ -262,7 +262,7 @@ function BombManual() {
         <div className="flex flex-col gap-2">
           {MEMORY_STEPS.map((stage, s) => (
             <div key={s} className="grid grid-cols-[auto_1fr] gap-2 text-xs">
-              <span className="pixel text-[0.5rem] text-zinc-500">S{s + 1}</span>
+              <span className="pixel text-[0.8rem] text-zinc-500">S{s + 1}</span>
               <ul className="flex flex-col gap-0.5 text-zinc-400">
                 {stage.map((step, d) => (
                   <li key={d}>
@@ -276,7 +276,7 @@ function BombManual() {
       </div>
 
       <div className="manual flex flex-col gap-3 p-5">
-        <h3 className="pixel text-[0.55rem] text-zinc-400">Password</h3>
+        <h3 className="pixel text-[0.88rem] text-zinc-400">Password</h3>
         <p className="text-xs text-zinc-600">
           Five spinners, six letters each, and exactly one word below can be spelled on them. Ask
           what a spinner can reach and cross words off — spinner one usually cuts hardest.
@@ -295,7 +295,7 @@ function MaydayPanel() {
   return (
     <section id="mayday-panel" className="relative flex w-full max-w-3xl flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 className="pixel text-[0.7rem] text-[color:var(--neon-amber)]">
+        <h2 className="pixel text-[1.12rem] text-[color:var(--neon-amber)]">
           Mayday — the panel and the book
         </h2>
         <p className="text-xs text-zinc-600">
@@ -305,7 +305,7 @@ function MaydayPanel() {
       </div>
 
       <div className="manual flex flex-col gap-3 p-5">
-        <h3 className="pixel text-[0.55rem] text-zinc-400">Settings</h3>
+        <h3 className="pixel text-[0.88rem] text-zinc-400">Settings</h3>
         <ul className="flex flex-col gap-1 text-sm text-zinc-400">
           {(Object.keys(MAYDAY_DIFFICULTY) as MaydayDifficulty[]).map((d) => {
             const spec = MAYDAY_DIFFICULTY[d];
@@ -321,7 +321,7 @@ function MaydayPanel() {
       </div>
 
       <div className="manual flex flex-col gap-3 p-5">
-        <h3 className="pixel text-[0.55rem] text-zinc-400">What the pilot can see</h3>
+        <h3 className="pixel text-[0.88rem] text-zinc-400">What the pilot can see</h3>
         <ul className="flex flex-col gap-1 text-sm text-zinc-400">
           <li>
             <span className="text-zinc-200">Instruments</span> — fuel, airspeed and heading. Fixed
@@ -342,7 +342,7 @@ function MaydayPanel() {
       </div>
 
       <div className="manual flex flex-col gap-3 p-5">
-        <h3 className="pixel text-[0.55rem] text-zinc-400">What a step can ask</h3>
+        <h3 className="pixel text-[0.88rem] text-zinc-400">What a step can ask</h3>
         <p className="text-xs text-zinc-600">
           Every step reads <span className="text-zinc-400">If … , do this. Otherwise do that.</span>{" "}
           The condition is always one of these five:

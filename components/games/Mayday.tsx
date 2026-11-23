@@ -147,7 +147,7 @@ export default function Mayday({ code, players, me }: GameProps) {
           }`}
         >
           <div className="flex items-center justify-between gap-3">
-            <span className="pixel text-[0.5rem] text-zinc-500">
+            <span className="pixel text-[0.8rem] text-zinc-500">
               Step {Math.min(table.step + 1, plan.steps.length)} of {plan.steps.length}
             </span>
             <span
@@ -238,7 +238,7 @@ function Cockpit({
           ["HDG", `${heading}°`],
         ].map(([label, value]) => (
           <div key={label} className="flex flex-col items-center gap-1">
-            <span className="pixel text-[0.45rem] text-zinc-600">{label}</span>
+            <span className="pixel text-[0.72rem] text-zinc-600">{label}</span>
             <span className="font-mono text-xl text-emerald-400">{value}</span>
           </div>
         ))}
@@ -248,7 +248,7 @@ function Cockpit({
         {LAMPS.map((lamp, i) => (
           <span key={lamp} className="flex items-center gap-2">
             <span className={`led ${lamps[i] ? "led-red" : ""}`} />
-            <span className="pixel text-[0.45rem] text-zinc-500">{lamp}</span>
+            <span className="pixel text-[0.72rem] text-zinc-500">{lamp}</span>
           </span>
         ))}
       </div>
@@ -262,7 +262,7 @@ function Cockpit({
             aria-label={`${label} switch, currently ${world.switches[i] ? "on" : "off"}`}
             className="flex flex-col items-center gap-1 disabled:opacity-50"
           >
-            <span className="pixel text-[0.45rem] text-zinc-500">{label}</span>
+            <span className="pixel text-[0.72rem] text-zinc-500">{label}</span>
             <span
               className={`flex h-9 w-6 rounded-sm border border-zinc-700 bg-zinc-950 p-0.5 ${
                 world.switches[i] ? "items-start" : "items-end"
@@ -279,7 +279,7 @@ function Cockpit({
       </div>
 
       <div className="bomb-mod flex items-center justify-center gap-3 p-4">
-        <span className="pixel text-[0.45rem] text-zinc-500">FLAP</span>
+        <span className="pixel text-[0.72rem] text-zinc-500">FLAP</span>
         {LEVER.map((slot, p) => (
           <button
             key={slot}
@@ -311,7 +311,7 @@ function Checklist({
 }) {
   return (
     <div className="manual flex flex-col gap-3 p-5">
-      <span className="pixel text-[0.5rem] text-[color:var(--neon-amber)]">
+      <span className="pixel text-[0.8rem] text-[color:var(--neon-amber)]">
         Emergency checklist
       </span>
       <ol className="flex flex-col gap-2 text-sm">

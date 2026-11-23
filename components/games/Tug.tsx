@@ -130,7 +130,7 @@ export default function Tug({ code, players, me }: GameProps) {
           ⚙
         </span>
         {won !== null && (
-          <span className="flash-win absolute inset-0 flex items-center justify-center pixel text-[0.7rem] text-emerald-400">
+          <span className="flash-win absolute inset-0 flex items-center justify-center pixel text-[1.12rem] text-emerald-400">
             {won === 0 ? "Left" : "Right"} crew takes it
           </span>
         )}

@@ -124,7 +124,7 @@ export default function Dial({ code, players, me }: GameProps) {
         <div className="cab flex w-full flex-col gap-4 rounded-md p-5">
           <div className="flex items-center justify-between text-sm text-zinc-400">
             <span>{spectrum[0]}</span>
-            <span className="pixel text-[0.55rem] text-zinc-600">Round {table.round}</span>
+            <span className="pixel text-[0.88rem] text-zinc-600">Round {table.round}</span>
             <span>{spectrum[1]}</span>
           </div>
 
@@ -138,7 +138,7 @@ export default function Dial({ code, players, me }: GameProps) {
             {marks.map(([id, at]) => (
               <span
                 key={id}
-                className="absolute -bottom-6 -translate-x-1/2 whitespace-nowrap text-[0.6rem] text-zinc-300"
+                className="absolute -bottom-6 -translate-x-1/2 whitespace-nowrap text-[0.96rem] text-zinc-300"
                 style={{ left: `${at}%` }}
               >
                 ▲ {name(id)}
@@ -186,7 +186,7 @@ export default function Dial({ code, players, me }: GameProps) {
 
                 <button
                   onClick={() => close(table, guesses)}
-                  className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
+                  className="btn-ghost rounded-sm px-3 py-2 text-[0.88rem]"
                 >
                   Reveal now
                 </button>

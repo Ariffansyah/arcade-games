@@ -302,7 +302,7 @@ function Tag({
       <div className={`relative flex flex-col ${compact ? "items-center" : "items-start"}`}>
         <span
           className={`seat-banner ${hot ? "seat-banner-hot" : ""} ${
-            compact ? "max-w-[4.2rem] text-[0.36rem]" : ""
+            compact ? "max-w-[4.2rem] text-[0.58rem]" : ""
           }`}
         >
           <span className="truncate">{label}</span>
@@ -317,14 +317,14 @@ function Tag({
           }`}
         />
         {compact && (
-          <span className="count-badge pixel absolute -right-3 -bottom-1 h-5 min-w-5 text-[0.45rem]">
+          <span className="count-badge pixel absolute -right-3 -bottom-1 h-5 min-w-5 text-[0.72rem]">
             {count}
           </span>
         )}
       </div>
       {!compact && <span className="count-badge pixel">{count}</span>}
       {count === 1 && !compact && (
-        <span className="pixel blink self-center text-[0.45rem] text-[color:var(--neon-amber)]">
+        <span className="pixel blink self-center text-[0.72rem] text-[color:var(--neon-amber)]">
           Last card!
         </span>
       )}
@@ -432,7 +432,7 @@ export default function LastCard({ code, players, me }: GameProps) {
           key={m}
           onClick={() => setMode(m)}
           aria-pressed={chosen === m}
-          className={`btn-ghost rounded-sm px-3 py-2 text-[0.55rem] ${
+          className={`btn-ghost rounded-sm px-3 py-2 text-[0.88rem] ${
             chosen === m ? "border-emerald-500 text-emerald-400" : ""
           }`}
         >
@@ -490,7 +490,7 @@ export default function LastCard({ code, players, me }: GameProps) {
 
   const flip = table.mode === "flip";
   const dark = !!table.dark;
-  const pile = table.pile.slice(-5);
+  const pile = table.pile.slice(-7);
   const pending = table.pending;
   const offender = pending ? faceOf(table, pending.card) : null;
   const victimDraws = offender
@@ -559,7 +559,7 @@ export default function LastCard({ code, players, me }: GameProps) {
       }`}
     >
       {flip && (
-        <span className="pixel absolute top-3 left-3 z-10 rounded-sm bg-[#06030d]/70 px-2 py-1 text-[0.45rem] text-zinc-300">
+        <span className="pixel absolute top-3 left-3 z-10 rounded-sm bg-[#06030d]/70 px-2 py-1 text-[0.72rem] text-zinc-300">
           {dark ? "Dark side" : "Light side"}
         </span>
       )}
@@ -628,22 +628,32 @@ export default function LastCard({ code, players, me }: GameProps) {
           {pile.map((card, i) => {
             const newest = i === pile.length - 1;
             const thrown = newest && last?.act === "play" ? from(last.by) : null;
+            // Each card lands on the last one: its own layer, a little higher, at its own angle.
             return (
-              <Face
+              <span
                 key={`${card}-${table.pile.length - pile.length + i}`}
-                c={faceOf(table, card)}
-                dark={dark}
-                lift
-                className={`absolute inset-0 ${thrown ? "card-fly" : ""}`}
-                style={
-                  {
-                    "--rot": `${((card * 37) % 30) - 15}deg`,
-                    "--fx": thrown ? `${thrown.x - 50}cqw` : "0",
-                    "--fy": thrown ? `${(thrown.y - 50) / FORESHORTEN}cqh` : "0",
-                    transform: "rotate(var(--rot))",
-                  } as React.CSSProperties
-                }
-              />
+                className="absolute inset-0"
+                style={{
+                  transform: `translate(${((card * 53) % 13) / 10 - 0.6}em, ${
+                    ((card * 29) % 11) / 10 - 0.5 + (i - pile.length + 1) * 0.3
+                  }em)`,
+                  zIndex: i,
+                }}
+              >
+                <span
+                  className={`absolute inset-0 ${thrown ? "card-fly" : ""}`}
+                  style={
+                    {
+                      "--rot": `${((card * 37) % 44) - 22}deg`,
+                      "--fx": thrown ? `${thrown.x - 50}cqw` : "0",
+                      "--fy": thrown ? `${(thrown.y - 50) / FORESHORTEN}cqh` : "0",
+                      transform: "rotate(var(--rot))",
+                    } as React.CSSProperties
+                  }
+                >
+                  <Face c={faceOf(table, card)} dark={dark} lift={newest} />
+                </span>
+              </span>
             );
           })}
         </div>
@@ -714,7 +724,7 @@ export default function LastCard({ code, players, me }: GameProps) {
 
       {table.winner && (
         <div className="menu-in absolute top-[50%] left-1/2 z-20 flex w-[min(90%,26rem)] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 rounded-md border-2 border-emerald-500 bg-[#06030d]/90 p-5 text-center shadow-[0_0_40px_rgba(57,255,136,0.35)]">
-          <span className="flash-win neon-green pixel text-[0.7rem] leading-relaxed">
+          <span className="flash-win neon-green pixel text-[1.12rem] leading-relaxed">
             {name(table.winner)} is out of cards!
           </span>
           <span className="text-base text-zinc-300">
@@ -780,7 +790,7 @@ export default function LastCard({ code, players, me }: GameProps) {
             {canDraw && (
               <button
                 onClick={() => send(draw(table))}
-                className="btn-arcade rounded-sm px-3 py-2 text-[0.55rem]"
+                className="btn-arcade rounded-sm px-3 py-2 text-[0.88rem]"
               >
                 Draw
               </button>
@@ -788,7 +798,7 @@ export default function LastCard({ code, players, me }: GameProps) {
             {myTurn && table.drawn >= 0 && (
               <button
                 onClick={() => send(pass(table))}
-                className="btn-ghost rounded-sm px-3 py-2 text-[0.5rem]"
+                className="btn-ghost rounded-sm px-3 py-2 text-[0.8rem]"
               >
                 Keep, pass
               </button>
@@ -836,7 +846,7 @@ export default function LastCard({ code, players, me }: GameProps) {
       {upGone && isHost && !table.winner && (
         <button
           onClick={() => send(leave(table))}
-          className="btn-ghost absolute top-3 right-3 z-10 rounded-sm px-3 py-2 text-[0.5rem]"
+          className="btn-ghost absolute top-3 right-3 z-10 rounded-sm px-3 py-2 text-[0.8rem]"
         >
           Skip the player who left
         </button>
@@ -889,14 +899,14 @@ export default function LastCard({ code, players, me }: GameProps) {
             className="cab flex flex-col items-center gap-4 rounded-md p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <span className="pixel text-[0.6rem] text-zinc-300">Call a colour</span>
+            <span className="pixel text-[0.96rem] text-zinc-300">Call a colour</span>
             <div className="grid grid-cols-2 gap-3">
               {pickPalette.map((c, i) => (
                 <button
                   key={c}
                   autoFocus={i === 0}
                   onClick={() => pickColour(c)}
-                  className="h-20 w-20 rounded-md border-2 border-white/70 text-[0.55rem] text-[#06030d]"
+                  className="h-20 w-20 rounded-md border-2 border-white/70 text-[0.88rem] text-[#06030d]"
                   style={{
                     background: HUE[c],
                     boxShadow: `0 0 20px ${HUE[c]}`,
