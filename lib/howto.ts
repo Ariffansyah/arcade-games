@@ -258,12 +258,15 @@ export const HOWTO: Record<string, Guide> = {
   lastcard: {
     goal: "Get rid of every card in your hand before anyone else does.",
     round: [
-      "The host picks a deck — Classic or Flip — deals seven cards each and turns one face up to start the pile.",
+      "The host picks a deck — Classic, Flip or No Mercy — and any house rules, then deals seven cards each and turns one face up to start the pile.",
       "On your turn play one card that matches the top card's colour or its face. Wilds go on anything and let you call the colour.",
       "Can't go, or don't want to? Draw one. If it fits you may play it straight away, otherwise the turn moves on.",
       "Skip jumps the next player, Reverse turns the table around, and draw cards make the next player pick up and lose their turn.",
       "A Wild Draw is only fair when you hold nothing in the current colour. The next player can take it or challenge: caught bluffing, you pick up instead; played fair, they pick up two extra.",
       "Flip deck: every card has a dark side. Play a Flip and the whole table turns over. The dark side hits harder — Draw Five, Skip Everyone, and Wild Draw Colour, which keeps dealing until the called colour turns up.",
+      "House rules, each switched on by the host: Stack Numbers lays every card of one number in a turn; Call Last Card means calling it as you go down to one, or anyone can catch you for two; Jump-In lets an exact copy of the top card go down out of turn; Force Play puts a drawn fit straight down; No Bluffing makes Wild Draws land with no challenge; Draw to Match keeps you drawing until a card fits.",
+      "No Mercy deck: adds Wild Draw Six and Wild Draw Ten and switches on its rules. Draw cards stack — answer with an equal or bigger one and whoever can't takes the lot. A 7 swaps hands with anyone, a 0 moves every hand on a seat, and anyone holding 25 cards or more is out of the round.",
+      "Tongkrongan rules, the way a lot of friend groups in Indonesia play: Finish on a Number (gak boleh habis pakai kartu power) means a Skip, Reverse, draw card or wild can't be your last card. Bounce Draws (balikin +2) lets a Reverse send a draw stack back and a Skip pass it on. Play to the Loser (cari yang kalah) makes going out safe, and the round goes on until one player is left holding cards.",
     ],
     scoring:
       "Whoever empties their hand takes the round and scores everything still held by everyone else: numbers at face value, action cards 20 (10 to 30 on the Flip deck), wilds 50 (40 to 60 on Flip). Going out on a draw card still makes the next player pick up first, and those cards count. Scores carry over between rounds.",

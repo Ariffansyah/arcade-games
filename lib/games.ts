@@ -159,7 +159,7 @@ export const GAMES: GameInfo[] = [
   {
     id: "lastcard",
     name: "Last Card",
-    blurb: "Match the colour or the face. Skips, draw cards, wilds — and a Flip deck with a dark side.",
+    blurb: "Match the colour or the face. Skips, draw cards, wilds, a Flip deck with a dark side, and No Mercy house rules.",
     art: "♠",
     seats: 2,
     party: true,

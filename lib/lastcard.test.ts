@@ -4,18 +4,24 @@ import {
   DECK,
   FLIP,
   HAND,
+  NO_MERCY,
   accept,
   backOf,
+  callLast,
+  catchOut,
+  catchable,
   challenge,
   current,
   deal,
   draw,
   faceOf,
+  leave,
   pass,
   play,
   playable,
   topCard,
   type LastCard,
+  type Rules,
 } from "./lastcard.ts";
 
 const find = (colour: string, face: string, skip = 0) =>
@@ -265,4 +271,188 @@ test("Wild Draw Colour keeps dealing until the called colour turns up", () => {
   const took = accept(laid);
   assert.equal(took.last?.took, 3);
   assert.deepEqual(took.deck, [deck[3]]);
+});
+
+const ruled = (rules: Rules, order = ["a", "b", "c"], mode: LastCard["mode"] = "classic") => ({
+  ...deal("room", order, 1, {}, mode),
+  rules,
+});
+
+test("stack numbers: every card of one number goes down in the same turn", () => {
+  const [red5, blue5] = [find("red", "5"), find("blue", "5")];
+  const g = rig(ruled({ numbers: true }), "a", [red5, blue5, find("green", "9")], find("red", "1"));
+  const first = play(g, red5);
+  assert.equal(current(first), "a");
+  assert.equal(first.run, "5");
+  assert.ok(!playable(first, find("green", "9")));
+  assert.equal(draw(first), first);
+  assert.equal(current(pass(first)), "b");
+  const second = play(first, blue5);
+  assert.equal(second.colour, "blue");
+  assert.equal(current(second), "b", "no fives left, so the turn moves on");
+});
+
+test("down to one card without calling it, anyone else can catch you for two", () => {
+  const g = rig(ruled({ uno: true }), "a", [find("red", "5"), find("blue", "9")], find("red", "1"));
+  const quiet = play(g, find("red", "5"));
+  assert.equal(catchable(quiet), "a");
+  assert.equal(catchOut(quiet, "a"), quiet);
+  const caught = catchOut(quiet, "c");
+  assert.equal(caught.hands.a.length, 3);
+  assert.equal(catchable(caught), "");
+  assert.equal(catchable(callLast(quiet, "a")), "");
+  assert.equal(catchable(play(g, find("red", "5"), undefined, { uno: true })), "");
+});
+
+test("jump-in: an exact copy of the top card goes down out of turn", () => {
+  const top = find("red", "5");
+  const copy = find("red", "5", top + 1);
+  const g = rig(ruled({ jumpIn: true }), "c", [copy, find("blue", "2")], top);
+  assert.ok(playable(g, copy, "c"));
+  assert.ok(!playable(g, find("blue", "2"), "c"));
+  const jumped = play(g, copy, undefined, { by: "c" });
+  assert.deepEqual(jumped.hands.c, [find("blue", "2")]);
+  assert.equal(current(jumped), "a", "play carries on from the one who jumped in");
+  const plain = rig(ruled({}), "c", [copy], top);
+  assert.equal(play(plain, copy, undefined, { by: "c" }), plain);
+});
+
+test("force play lays a drawn fit; draw to match keeps drawing until one fits", () => {
+  const g = rig(ruled({ forcePlay: true }), "a", [find("blue", "2")], find("red", "1"));
+  const forced = draw({ ...g, deck: [find("red", "8"), ...g.deck] });
+  assert.equal(topCard(forced).face, "8");
+  assert.equal(current(forced), "b");
+
+  const m = rig(ruled({ drawToMatch: true }), "a", [find("blue", "2")], find("red", "1"));
+  const deck = [find("blue", "4"), find("green", "6"), find("red", "8"), find("yellow", "3")];
+  const matched = draw({ ...m, deck });
+  assert.equal(matched.hands.a.length, 4);
+  assert.equal(matched.drawn, find("red", "8"));
+  assert.equal(current(matched), "a");
+});
+
+test("no bluffing: a Wild Draw Four lands at once with nothing to challenge", () => {
+  const g = rig(
+    ruled({ noBluffing: true }),
+    "a",
+    [find("wild", "+4"), find("red", "2")],
+    find("red", "1")
+  );
+  const hit = play(g, find("wild", "+4"), "blue");
+  assert.equal(hit.pending, null);
+  assert.equal(hit.hands.b.length, g.hands.b.length + 4);
+  assert.equal(current(hit), "c");
+});
+
+test("stacking: draw cards pile onto whoever can't answer with an equal or bigger one", () => {
+  const six = NO_MERCY.findIndex((c) => c.face === "+6");
+  const base = rig(
+    ruled({ stacking: true }, ["a", "b", "c"], "mercy"),
+    "a",
+    [find("red", "+2"), find("red", "3")],
+    find("red", "1")
+  );
+  const g = { ...base, hands: { ...base.hands, b: [six, find("blue", "+2"), find("green", "4")] } };
+  const laid = play(g, find("red", "+2"));
+  assert.equal(laid.stack, 2);
+  assert.equal(current(laid), "b");
+  assert.ok(playable(laid, find("blue", "+2")));
+  assert.ok(!playable(laid, find("green", "4")));
+  const raised = play(laid, six, "green");
+  assert.equal(raised.stack, 8);
+  assert.ok(!playable(raised, find("yellow", "+2")), "a +2 can't go on a +6");
+  assert.equal(pass(raised), raised);
+  const took = draw(raised);
+  assert.equal(took.hands.c.length, raised.hands.c.length + 8);
+  assert.equal(took.stack, 0);
+  assert.equal(current(took), "a");
+});
+
+test("7s swap hands with a chosen player, 0s move every hand on a seat", () => {
+  const hand = [find("red", "7"), find("red", "0"), find("blue", "2")];
+  const g = rig(ruled({ sevens: true, zeros: true }), "a", hand, find("red", "1"));
+  const swapped = play(g, find("red", "7"), undefined, { to: "c" });
+  assert.deepEqual(swapped.hands.a, g.hands.c);
+  assert.deepEqual(swapped.hands.c, [find("red", "0"), find("blue", "2")]);
+  assert.equal(current(swapped), "b");
+
+  const passed = play(g, find("red", "0"));
+  assert.deepEqual(passed.hands.b, [find("red", "7"), find("blue", "2")]);
+  assert.deepEqual(passed.hands.c, g.hands.b);
+  assert.deepEqual(passed.hands.a, g.hands.c);
+});
+
+test("mercy: 25 cards puts a player out, and the last one sitting wins", () => {
+  const hit = (order: string[]) => {
+    const g = rig(
+      ruled({ mercy: true }, order),
+      "a",
+      [find("red", "+2"), find("red", "3")],
+      find("red", "1")
+    );
+    const full = { ...g, hands: { ...g.hands, b: g.deck.slice(0, 23) }, deck: g.deck.slice(23) };
+    return [full, play(full, find("red", "+2"))];
+  };
+  const [g, three] = hit(["a", "b", "c"]);
+  assert.deepEqual(three.order, ["a", "c"]);
+  assert.equal(current(three), "c");
+  assert.equal(three.last?.out, "b");
+  assert.deepEqual(three.hands.b, []);
+  assert.equal(three.deck.length, g.deck.length - 2 + 25);
+  assert.equal(three.winner, "");
+  assert.equal(hit(["a", "b"])[1].winner, "a");
+  assert.equal(current(leave(g)), "b");
+});
+
+test("finish on a number: a lone action or wild card can't go out", () => {
+  const top = find("red", "1");
+  const g = ruled({ numberFinish: true });
+  assert.ok(!playable(rig(g, "a", [find("red", "skip")], top), find("red", "skip")));
+  assert.ok(!playable(rig(g, "a", [find("wild", "wild")], top), find("wild", "wild")));
+  assert.ok(playable(rig(g, "a", [find("red", "5")], top), find("red", "5")));
+  assert.ok(
+    playable(rig(g, "a", [find("red", "skip"), find("red", "5")], top), find("red", "skip"))
+  );
+});
+
+test("bounce draws: under a stack a Reverse sends it back, a Skip passes it on", () => {
+  const base = rig(
+    ruled({ stacking: true, deflect: true }),
+    "a",
+    [find("red", "+2"), find("red", "3")],
+    find("red", "1")
+  );
+  const reverse = find("red", "reverse");
+  const skip = find("red", "skip");
+  const laid = play(
+    { ...base, hands: { ...base.hands, b: [reverse, skip, find("blue", "4")] } },
+    find("red", "+2")
+  );
+  const back = play(laid, reverse);
+  assert.equal(current(back), "a");
+  assert.equal(back.stack, 2);
+  const on = play(laid, skip);
+  assert.equal(current(on), "c");
+  assert.equal(on.stack, 2);
+  assert.ok(!playable({ ...laid, rules: { stacking: true } }, reverse));
+});
+
+test("play to the loser: going out is safe, and the last one holding cards loses", () => {
+  const g = rig(ruled({ lastLoses: true }), "a", [find("red", "5")], find("red", "1"));
+  const one = play(
+    {
+      ...g,
+      hands: { ...g.hands, b: [find("red", "6")], c: [find("blue", "2"), find("green", "9")] },
+    },
+    find("red", "5")
+  );
+  assert.deepEqual(one.order, ["b", "c"]);
+  assert.deepEqual(one.safe, ["a"]);
+  assert.equal(one.winner, "");
+  assert.equal(one.scores.a, 6 + 2 + 9);
+  assert.equal(current(one), "b");
+  const two = play(one, find("red", "6"));
+  assert.equal(two.winner, "a");
+  assert.equal(two.loser, "c");
+  assert.equal(two.scores.b, undefined);
 });

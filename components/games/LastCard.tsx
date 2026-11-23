@@ -4,14 +4,17 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   COLOURS,
   DARK,
+  MERCY,
   accept,
   backOf,
+  callLast,
+  catchOut,
+  catchable,
   challenge,
   current,
   deal,
   draw,
   faceOf,
-  isWildDraw,
   leave,
   palette,
   pass,
@@ -21,6 +24,8 @@ import {
   type Colour,
   type LastCard as Game,
   type Mode,
+  type Rule,
+  type Rules,
 } from "@/lib/lastcard.ts";
 import { useTable } from "@/lib/useTable";
 import { sfx } from "@/lib/sfx";
@@ -46,6 +51,8 @@ const NAMES: Record<string, string> = {
   "+1": "Draw One",
   "+5": "Draw Five",
   "+4": "Wild Draw Four",
+  "+6": "Wild Draw Six",
+  "+10": "Wild Draw Ten",
   "+colour": "Wild Draw Colour",
   wild: "Wild",
 };
@@ -74,8 +81,61 @@ const ORDER = [
   "+5",
   "wild",
   "+4",
+  "+6",
+  "+10",
   "+colour",
 ];
+
+type RuleInfo = { id: Rule; label: string; hint: string };
+
+const HOUSE: RuleInfo[] = [
+  { id: "numbers", label: "Stack numbers", hint: "Lay every card of the same number in one turn" },
+  {
+    id: "uno",
+    label: "Call Last Card",
+    hint: "Call it as you go down to one card, or anyone can catch you for two",
+  },
+  {
+    id: "jumpIn",
+    label: "Jump-In",
+    hint: "Hold an exact copy of the top card? Play it out of turn",
+  },
+  { id: "forcePlay", label: "Force Play", hint: "A drawn card that fits goes straight down" },
+  { id: "noBluffing", label: "No Bluffing", hint: "Wild Draws land at once, no challenge" },
+  { id: "drawToMatch", label: "Draw to Match", hint: "Keep drawing until a card fits" },
+];
+
+const MERCY_RULES: RuleInfo[] = [
+  {
+    id: "stacking",
+    label: "Stack draws",
+    hint: "Answer a draw card with an equal or bigger one; whoever can't takes the lot",
+  },
+  { id: "sevens", label: "7s swap", hint: "Play a 7 and swap hands with anyone" },
+  { id: "zeros", label: "0s pass", hint: "Play a 0 and every hand moves on a seat" },
+  { id: "mercy", label: "Mercy", hint: `${MERCY} cards or more and you're out of the round` },
+];
+
+// How friend groups in Indonesia often play it, by the names they go by at the table.
+const LOCAL_RULES: RuleInfo[] = [
+  {
+    id: "numberFinish",
+    label: "Finish on a number",
+    hint: "Gak boleh habis pakai kartu power: a Skip, Reverse, draw card or wild can't be your last card",
+  },
+  {
+    id: "deflect",
+    label: "Bounce draws",
+    hint: "Balikin +2: with Stack draws on, a Reverse sends the stack back and a Skip passes it on",
+  },
+  {
+    id: "lastLoses",
+    label: "Play to the loser",
+    hint: "Cari yang kalah: going out makes you safe, and play goes on until one player is left holding cards",
+  },
+];
+
+const ALL_RULES = [...HOUSE, ...MERCY_RULES, ...LOCAL_RULES];
 
 const ICONS: Record<string, string> = {
   skip: "M12 3.5a8.5 8.5 0 1 0 0 17a8.5 8.5 0 1 0 0-17M6 18L18 6",
@@ -177,7 +237,8 @@ function Face({
           aria-hidden
           className="card-ink relative flex items-center leading-none"
           style={{
-            fontSize: long ? "2.3em" : ICONS[c.face] ? "3.4em" : "3.6em",
+            fontSize:
+              c.face === "+10" ? "1.8em" : long ? "2.3em" : ICONS[c.face] ? "3.4em" : "3.6em",
             color: wild ? "#f7f3ff" : dark ? "#0b0618" : body,
             textShadow: wild || !dark ? OUTLINE : undefined,
           }}
@@ -370,6 +431,10 @@ export default function LastCard({ code, players, me }: GameProps) {
   const [table, send] = useTable<Game>(`lastcard:${code}`, me.id);
   const [picking, setPicking] = useState(-1);
   const [mode, setMode] = useState<Mode | null>(null);
+  const [rules, setRules] = useState<Rules | null>(null);
+  // The hand you called on, so the call lapses once that hand changes.
+  const [calling, setCalling] = useState("");
+  const [swapping, setSwapping] = useState(-1);
   const portrait = usePortrait();
 
   const isHost = players[0]?.id === me.id;
@@ -378,6 +443,7 @@ export default function LastCard({ code, players, me }: GameProps) {
   const myTurn = up === me.id;
   const upGone = !!up && !players.some((p) => p.id === up);
   const chosen = mode ?? table?.mode ?? "classic";
+  const house = rules ?? table?.rules ?? {};
 
   const pileSize = table?.pile.length ?? 0;
   const held = Object.values(table?.hands ?? {}).flat().length;
@@ -397,20 +463,33 @@ export default function LastCard({ code, players, me }: GameProps) {
     table?.hands[me.id] && table.order.includes(me.id)
       ? [...table.hands[me.id]].sort((a, b) => sortKey(a) - sortKey(b))
       : null;
+  const saying = !!hand && calling === hand.join();
 
   // A Flip whose other side is a wild asks for a colour from the side it turns up.
   const flipsTo = (card: number) => {
     const c = faceOf(table!, card);
     return c.face === "flip" ? { mode: table!.mode, dark: !table!.dark } : table!;
   };
+  const lay = (card: number, colour?: Colour, to?: string) => {
+    send(play(table!, card, colour, { by: me.id, to, uno: saying }));
+    setCalling("");
+  };
   const tryPlay = (card: number) => {
-    if (!table || !myTurn || !playable(table, card)) return;
+    if (!table || !playable(table, card, me.id)) return;
     if (faceOf(flipsTo(card), card).colour === "wild") return setPicking(card);
-    send(play(table, card));
+    // With two players there is only one hand to swap with.
+    if (
+      table.rules?.sevens &&
+      faceOf(table, card).face === "7" &&
+      table.order.length > 2 &&
+      table.hands[me.id].length > 1
+    )
+      return setSwapping(card);
+    lay(card);
   };
 
   const pickColour = (colour: Colour) => {
-    if (table && picking >= 0) send(play(table, picking, colour));
+    if (table && picking >= 0) lay(picking, colour);
     setPicking(-1);
   };
 
@@ -421,30 +500,90 @@ export default function LastCard({ code, players, me }: GameProps) {
         players.map((p) => p.id),
         (table?.round ?? 0) + 1,
         table?.scores ?? {},
-        chosen
+        chosen,
+        house
       )
     );
 
   const modePicker = isHost && (
-    <div className="flex gap-2" role="group" aria-label="Deck">
-      {(["classic", "flip"] as const).map((m) => (
+    <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Deck">
+      {(["classic", "flip", "mercy"] as const).map((m) => (
         <button
           key={m}
-          onClick={() => setMode(m)}
+          onClick={() => {
+            setMode(m);
+            if (m === "mercy")
+              setRules({
+                ...house,
+                drawToMatch: true,
+                stacking: true,
+                sevens: true,
+                zeros: true,
+                mercy: true,
+              });
+          }}
           aria-pressed={chosen === m}
           className={`btn-ghost rounded-sm px-3 py-2 text-[0.88rem] ${
             chosen === m ? "border-emerald-500 text-emerald-400" : ""
           }`}
         >
-          {m === "classic" ? "Classic deck" : "Flip deck"}
+          {m === "classic" ? "Classic deck" : m === "flip" ? "Flip deck" : "No Mercy deck"}
         </button>
       ))}
     </div>
   );
 
+  const ruleCount = ALL_RULES.filter((r) => house[r.id]).length;
+  const rulesPicker = isHost && (
+    <details className="w-full max-w-md text-left">
+      <summary className="pixel cursor-pointer py-1 text-center text-[0.8rem] text-zinc-300 uppercase">
+        House rules{ruleCount ? ` · ${ruleCount} on` : ""}
+      </summary>
+      {(
+        [
+          ["House rules", HOUSE],
+          ["No Mercy", MERCY_RULES],
+          ["Tongkrongan", LOCAL_RULES],
+        ] as const
+      ).map(([title, list]) => (
+        <div key={title} role="group" aria-label={title} className="mt-2">
+          <h3 className="neon-magenta pt-1 text-[0.72rem]">{title}</h3>
+          {list.map((r) => (
+            <div
+              key={r.id}
+              className="flex items-center justify-between gap-4 border-b border-zinc-800/80 py-2"
+            >
+              <div className="flex flex-col">
+                <span className="pixel text-[0.8rem] text-zinc-200">{r.label}</span>
+                <span className="text-sm text-zinc-500">{r.hint}</span>
+              </div>
+              <button
+                role="switch"
+                aria-checked={!!house[r.id]}
+                aria-label={r.label}
+                onClick={() => setRules({ ...house, [r.id]: !house[r.id] })}
+                className={`flex h-7 w-12 shrink-0 items-center rounded-sm border-2 px-0.5 transition-colors ${
+                  house[r.id]
+                    ? "border-emerald-500 bg-emerald-500/20"
+                    : "border-zinc-700 bg-zinc-950"
+                }`}
+              >
+                <span
+                  className={`h-4 w-5 rounded-[2px] transition-transform ${
+                    house[r.id] ? "translate-x-5 bg-emerald-400" : "bg-zinc-600"
+                  }`}
+                />
+              </button>
+            </div>
+          ))}
+        </div>
+      ))}
+    </details>
+  );
+
   if (!table)
     return (
-      <div className="uno-stage absolute inset-0 flex items-center justify-center overflow-y-auto p-4">
+      <div className="uno-stage absolute inset-0 flex items-center-safe justify-center overflow-y-auto p-4">
         <div className="menu-in cab flex w-full max-w-xl flex-col items-center gap-5 rounded-md p-5 text-center">
           <h2 className="pixel neon-cyan text-sm">Last Card</h2>
           <div className="flex gap-2 text-[length:clamp(7px,2.2vw,11px)]" aria-hidden>
@@ -468,9 +607,10 @@ export default function LastCard({ code, players, me }: GameProps) {
           <p className="text-base text-zinc-300">
             Match the colour or the face. Skips, reverses, draw cards and wilds keep it nasty. First
             to empty their hand wins the round. The Flip deck has a dark side: play a Flip and every
-            card on the table turns over.
+            card on the table turns over. No Mercy adds Wild Draw Six and Ten.
           </p>
           {modePicker}
+          {rulesPicker}
           {isHost ? (
             <button
               onClick={start}
@@ -514,21 +654,45 @@ export default function LastCard({ code, players, me }: GameProps) {
             ? ` — the table flips to the ${dark ? "dark" : "light"} side!`
             : played.face === "skip-all"
               ? " — everyone else is skipped"
-              : isWildDraw(played)
-                ? ` — ${name(after)} takes it or calls the bluff`
-                : ["+1", "+2", "+5"].includes(played.face)
-                  ? ` — the next player picks up ${played.face.slice(1)}`
-                  : ""
+              : table.stack
+                ? played.face === "reverse"
+                  ? ` — bounces the stack of ${table.stack} back`
+                  : played.face === "skip"
+                    ? ` — passes the stack of ${table.stack} on`
+                    : ` — the stack is up to ${table.stack}`
+                : last.took
+                  ? ` — ${name(last.to)} picks up ${last.took}`
+                  : pending
+                    ? ` — ${name(after)} takes it or calls the bluff`
+                    : last.to
+                      ? ` — swaps hands with ${name(last.to)}`
+                      : played.face === "0" && table.rules?.zeros
+                        ? " — every hand moves on a seat"
+                        : ""
         }`
       : last.act === "draw"
-        ? `${name(last.by)} drew a card`
-        : last.act === "accept"
-          ? `${name(last.by)} picked up ${last.took}`
-          : last.act === "challenge"
-            ? last.caught
-              ? `${name(last.by)} called the bluff! The player who laid it picks up ${last.took}`
-              : `${name(last.by)} challenged and was wrong — picks up ${last.took}`
-            : `${name(last.by)} kept it`;
+        ? `${name(last.by)} drew ${last.took === 1 ? "a card" : `${last.took} cards`}`
+        : last.act === "uno"
+          ? `${name(last.by)} called last card!`
+          : last.act === "catch"
+            ? `${name(last.by)} caught ${name(last.to)} on one card — picks up ${last.took}`
+            : last.act === "accept"
+              ? `${name(last.by)} picked up ${last.took}`
+              : last.act === "challenge"
+                ? last.caught
+                  ? `${name(last.by)} called the bluff! The player who laid it picks up ${last.took}`
+                  : `${name(last.by)} challenged and was wrong — picks up ${last.took}`
+                : `${name(last.by)} passed`;
+  const lastNews = [
+    lastLine,
+    last?.out && `${name(last.out)} hit ${MERCY} cards and is out!`,
+    last?.act === "play" &&
+      !table.winner &&
+      table.safe?.includes(last.by) &&
+      `${name(last.by)} is out of cards and safe!`,
+  ]
+    .filter(Boolean)
+    .join(". ");
 
   const drawer = last?.to ?? "";
   const flying = drawer && last?.took ? Math.min(last.took, 6) : 0;
@@ -549,7 +713,10 @@ export default function LastCard({ code, players, me }: GameProps) {
     const other = backOf(table, card);
     return other ? <Face c={other} dark={!dark} /> : <Back />;
   };
-  const canDraw = myTurn && table.drawn < 0 && !pending;
+  const canDraw = myTurn && table.drawn < 0 && !pending && !table.run;
+  const caught = catchable(table);
+  const callable = !!table.rules?.uno && !!hand && (caught === me.id || hand.length === 2);
+  const live = ALL_RULES.filter((r) => table.rules?.[r.id]);
 
   return (
     <div
@@ -558,11 +725,18 @@ export default function LastCard({ code, players, me }: GameProps) {
         flip && table.pile.length > 1 ? "stage-flash" : ""
       }`}
     >
-      {flip && (
-        <span className="pixel absolute top-3 left-3 z-10 rounded-sm bg-[#06030d]/70 px-2 py-1 text-[0.72rem] text-zinc-300">
-          {dark ? "Dark side" : "Light side"}
-        </span>
-      )}
+      <div className="absolute top-3 left-3 z-10 flex max-w-[min(40%,16rem)] flex-col items-start gap-1">
+        {flip && (
+          <span className="pixel rounded-sm bg-[#06030d]/70 px-2 py-1 text-[0.72rem] text-zinc-300">
+            {dark ? "Dark side" : "Light side"}
+          </span>
+        )}
+        {live.length > 0 && (
+          <span className="rounded-sm bg-[#06030d]/70 px-2 py-1 text-xs text-zinc-400">
+            {live.map((r) => r.label).join(" · ")}
+          </span>
+        )}
+      </div>
 
       <div
         className="absolute top-[50%] left-1/2 h-[min(60vmin,540px)] w-[min(60vmin,540px)] -translate-x-1/2 -translate-y-1/2"
@@ -723,9 +897,15 @@ export default function LastCard({ code, players, me }: GameProps) {
         })}
 
       {table.winner && (
-        <div className="menu-in absolute top-[50%] left-1/2 z-20 flex w-[min(90%,26rem)] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 rounded-md border-2 border-emerald-500 bg-[#06030d]/90 p-5 text-center shadow-[0_0_40px_rgba(57,255,136,0.35)]">
+        <div className="menu-in absolute top-[50%] left-1/2 z-20 flex max-h-[calc(100%-2rem)] w-[min(90%,26rem)] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 overflow-y-auto rounded-md border-2 border-emerald-500 bg-[#06030d]/90 p-5 text-center shadow-[0_0_40px_rgba(57,255,136,0.35)]">
           <span className="flash-win neon-green pixel text-[1.12rem] leading-relaxed">
-            {name(table.winner)} is out of cards!
+            {table.loser
+              ? `${name(table.loser)} is left holding the cards!`
+              : `${name(table.winner)} ${
+                  table.hands[table.winner].length
+                    ? "is the last one standing!"
+                    : "is out of cards!"
+                }`}
           </span>
           <span className="text-base text-zinc-300">
             {name(table.winner)} has {table.scores[table.winner] ?? 0} points.
@@ -733,6 +913,7 @@ export default function LastCard({ code, players, me }: GameProps) {
           {isHost ? (
             <>
               {modePicker}
+              {rulesPicker}
               <button
                 onClick={start}
                 disabled={players.length < 2}
@@ -762,7 +943,11 @@ export default function LastCard({ code, players, me }: GameProps) {
             />
           ) : (
             <span className="text-sm text-zinc-400">
-              You are watching. You&apos;ll be dealt in next round.
+              {table.safe?.includes(me.id)
+                ? "You're out of cards and safe this round."
+                : table.hands[me.id]?.length === 0
+                  ? "Mercy! You're out this round."
+                  : "You are watching. You'll be dealt in next round."}
             </span>
           )}
           <div className="flex min-w-0 flex-1 flex-col items-center text-center">
@@ -777,13 +962,23 @@ export default function LastCard({ code, players, me }: GameProps) {
                     ? `Wild draw on you. Take ${victimDraws}, or challenge.`
                     : `${name(up)} is deciding whether to challenge…`
                   : myTurn
-                    ? table.drawn >= 0
-                      ? "It fits. Play it, or keep it and pass."
-                      : "Your turn — play a card or draw."
-                    : `${name(up)} is thinking…`}
+                    ? table.stack
+                      ? `${table.stack} to pick up. Answer with an equal or bigger draw card${
+                          table.rules?.deflect ? ", a Reverse or a Skip" : ""
+                        }, or take them.`
+                      : table.run
+                        ? `Lay another ${table.run}, or finish.`
+                        : table.drawn >= 0
+                          ? "It fits. Play it, or keep it and pass."
+                          : hand?.length === 1 && !playable(table, hand[0], me.id)
+                            ? "Your last card can't go down — draw."
+                            : "Your turn — play a card or draw."
+                    : table.stack
+                      ? `${name(up)} faces a stack of ${table.stack}…`
+                      : `${name(up)} is thinking…`}
             </p>
-            {lastLine && (
-              <p className="line-clamp-2 text-xs text-zinc-400 sm:text-sm">{lastLine}</p>
+            {lastNews && (
+              <p className="line-clamp-2 text-xs text-zinc-400 sm:text-sm">{lastNews}</p>
             )}
           </div>
           <div className="flex shrink-0 flex-col gap-1.5">
@@ -792,15 +987,42 @@ export default function LastCard({ code, players, me }: GameProps) {
                 onClick={() => send(draw(table))}
                 className="btn-arcade rounded-sm px-3 py-2 text-[0.88rem]"
               >
-                Draw
+                {table.stack ? `Take ${table.stack}` : "Draw"}
               </button>
             )}
-            {myTurn && table.drawn >= 0 && (
+            {myTurn && (table.drawn >= 0 || table.run) && (
               <button
                 onClick={() => send(pass(table))}
                 className="btn-ghost rounded-sm px-3 py-2 text-[0.8rem]"
               >
-                Keep, pass
+                {table.run ? "Done" : "Keep, pass"}
+              </button>
+            )}
+            {callable && hand && (
+              <button
+                onClick={() =>
+                  caught === me.id
+                    ? send(callLast(table, me.id))
+                    : setCalling(saying ? "" : hand.join())
+                }
+                aria-pressed={caught === me.id ? undefined : saying}
+                className={`btn-ghost rounded-sm px-3 py-2 text-[0.8rem] ${
+                  saying
+                    ? "border-emerald-500 text-emerald-400"
+                    : caught === me.id
+                      ? "blink border-amber-400 text-amber-300"
+                      : ""
+                }`}
+              >
+                Last card!
+              </button>
+            )}
+            {caught && caught !== me.id && seating && (
+              <button
+                onClick={() => send(catchOut(table, me.id))}
+                className="btn-ghost btn-danger rounded-sm px-3 py-2 text-[0.8rem]"
+              >
+                Catch {name(caught)}
               </button>
             )}
           </div>
@@ -813,7 +1035,7 @@ export default function LastCard({ code, players, me }: GameProps) {
               style={{ "--n": hand.length } as React.CSSProperties}
             >
               {hand.map((card, i) => {
-                const ok = myTurn && playable(table, card);
+                const ok = playable(table, card, me.id);
                 const c = faceOf(table, card);
                 return (
                   <button
@@ -883,6 +1105,38 @@ export default function LastCard({ code, players, me }: GameProps) {
               >
                 Challenge
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {swapping >= 0 && (
+        <div
+          role="dialog"
+          aria-label="Swap hands with"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setSwapping(-1)}
+        >
+          <div
+            className="cab flex flex-col items-center gap-4 rounded-md p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="pixel text-[0.96rem] text-zinc-300">Swap hands with</span>
+            <div className="flex flex-col gap-2">
+              {rivals.map(({ id }, i) => (
+                <button
+                  key={id}
+                  autoFocus={i === 0}
+                  onClick={() => {
+                    lay(swapping, undefined, id);
+                    setSwapping(-1);
+                  }}
+                  className="btn-ghost flex items-center justify-between gap-6 rounded-sm px-4 py-2 text-[0.88rem]"
+                >
+                  <span>{name(id)}</span>
+                  <span className="count-badge pixel">{table.hands[id].length}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
