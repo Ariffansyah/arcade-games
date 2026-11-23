@@ -487,8 +487,8 @@ export default function Lobby({ code }: { code: string }) {
         />
 
         <footer className="pt-2 text-center text-base text-zinc-600">
-          Anyone with the code can walk in. Reload and you keep your seat; close the tab and it
-          frees up.
+          Anyone with the code can walk in. Reload, or close the tab and tap the link again, and
+          you keep your seat.
         </footer>
       </div>
       {settingsPanel}

@@ -3,7 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
-import { cleanName, saveName, session, sortPlayers, storedName, type Player } from "./players";
+import {
+  cleanName,
+  local,
+  saveName,
+  session,
+  sortPlayers,
+  storedName,
+  type Player,
+} from "./players";
 
 export type { Player };
 
@@ -36,7 +44,7 @@ const randomName = () => `Player-${Math.random().toString(36).slice(2, 6)}`;
 
 export function useRoom(code: string, name?: string): RoomState {
   const [me, setMe] = useState<Player>(() => {
-    const saved = typeof window === "undefined" ? null : session.get<Player>(`arcade:me:${code}`);
+    const saved = typeof window === "undefined" ? null : local.get<Player>(`arcade:me:${code}`);
     return {
       id: saved?.id ?? crypto.randomUUID(),
       name: cleanName(name ?? "") || storedName() || saved?.name || randomName(),
@@ -62,7 +70,7 @@ export function useRoom(code: string, name?: string): RoomState {
     session.set(`arcade:game:${code}`, game);
   }, [code, game]);
 
-  useEffect(() => session.set(`arcade:me:${code}`, me), [code, me]);
+  useEffect(() => local.set(`arcade:me:${code}`, me), [code, me]);
 
   useEffect(() => {
     const ch = supabase.channel(`room:${code}`, {

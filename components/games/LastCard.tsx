@@ -488,7 +488,8 @@ export default function LastCard({ code, players, me, name }: GameProps) {
   const left = useTurnClock(
     table,
     TURN_MS,
-    table && !table.winner && seated ? () => send(timeout(table)) : null,
+    // Someone who has left the room is taken off the table rather than played for forever.
+    table && !table.winner && seated ? () => send(upGone ? leave(table) : timeout(table)) : null,
     myTurn ? 0 : 2500
   );
 
@@ -710,21 +711,23 @@ export default function LastCard({ code, players, me, name }: GameProps) {
         }`
       : last.act === "draw"
         ? `${name(last.by)} drew ${last.took === 1 ? "a card" : `${last.took} cards`}`
-        : last.act === "join"
-          ? last.took
-            ? `${name(last.by)} sat down and was dealt ${last.took}`
-            : `${name(last.by)} is back at the table`
-          : last.act === "uno"
-            ? `${name(last.by)} called last card!`
-            : last.act === "catch"
-              ? `${name(last.by)} caught ${name(last.to)} on one card — picks up ${last.took}`
-              : last.act === "accept"
-                ? `${name(last.by)} picked up ${last.took}`
-                : last.act === "challenge"
-                  ? last.caught
-                    ? `${name(last.by)} called the bluff! The player who laid it picks up ${last.took}`
-                    : `${name(last.by)} challenged and was wrong — picks up ${last.took}`
-                  : `${name(last.by)} passed`;
+        : last.act === "leave"
+          ? `${name(last.by)} left the table`
+          : last.act === "join"
+            ? last.took
+              ? `${name(last.by)} sat down and was dealt ${last.took}`
+              : `${name(last.by)} is back at the table`
+            : last.act === "uno"
+              ? `${name(last.by)} called last card!`
+              : last.act === "catch"
+                ? `${name(last.by)} caught ${name(last.to)} on one card — picks up ${last.took}`
+                : last.act === "accept"
+                  ? `${name(last.by)} picked up ${last.took}`
+                  : last.act === "challenge"
+                    ? last.caught
+                      ? `${name(last.by)} called the bluff! The player who laid it picks up ${last.took}`
+                      : `${name(last.by)} challenged and was wrong — picks up ${last.took}`
+                    : `${name(last.by)} passed`;
   const lastNews = [
     last?.late
       ? `${name(last.by)} ran out of time — ${lastLine.replace(`${name(last.by)} `, "")}`

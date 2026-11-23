@@ -67,7 +67,8 @@ export default function Poker({ code, players, me, name }: GameProps) {
   const left = useTurnClock(
     table,
     TURN_MS,
-    table && !table.won && seated ? () => send(timeout(table)) : null,
+    // Someone who has left the room folds; the next hand is dealt to whoever is still here.
+    table && !table.won && seated ? () => send(upGone ? fold(table) : timeout(table)) : null,
     myTurn ? 0 : 2500
   );
 

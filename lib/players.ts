@@ -29,21 +29,26 @@ export const saveName = (name: string) => {
   }
 };
 
-// Kept per tab, so a reload walks back into the same seat while a second tab is a new player.
-export const session = {
+const stored = (area: () => Storage) => ({
   get<T>(key: string): T | null {
     try {
-      return JSON.parse(sessionStorage.getItem(key) ?? "null");
+      return JSON.parse(area().getItem(key) ?? "null");
     } catch {
       return null;
     }
   },
   set(key: string, value: unknown) {
     try {
-      sessionStorage.setItem(key, JSON.stringify(value));
+      area().setItem(key, JSON.stringify(value));
     } catch {}
   },
-};
+});
+
+// Kept per tab: the table you were looking at, so a reload picks it straight back up.
+export const session = stored(() => sessionStorage);
+// Kept per browser: who you are in a room, so closing the tab and tapping the link again walks
+// back into the same seat instead of leaving a ghost of you at the table.
+export const local = stored(() => localStorage);
 
 export const holderFor = (order: string[], round: number) =>
   order.length ? order[(round - 1) % Math.min(order.length, 2)] : "";

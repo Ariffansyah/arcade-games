@@ -64,7 +64,7 @@ export const FLIP = shuffle(
 
 export type Move = {
   by: string;
-  act: "play" | "draw" | "pass" | "accept" | "challenge" | "uno" | "catch" | "join";
+  act: "play" | "draw" | "pass" | "accept" | "challenge" | "uno" | "catch" | "join" | "leave";
   card: number;
   to?: string;
   took?: number;
@@ -512,7 +512,15 @@ function drop(g: LastCard, i: number): LastCard {
 
 // Whoever is up has left the room: their hand goes with them, and the last one sitting wins.
 export const leave = (g: LastCard): LastCard =>
-  g.winner || g.order.length < 2 ? g : { ...drop(g, g.turn), drawn: -1, pending: null, run: "" };
+  g.winner || g.order.length < 2
+    ? g
+    : {
+        ...drop(g, g.turn),
+        drawn: -1,
+        pending: null,
+        run: "",
+        last: { by: current(g), act: "leave", card: -1 },
+      };
 
 // Play to the loser: whoever runs out is safe, and the first one out scores the round. Play goes
 // on until one player is left holding cards.

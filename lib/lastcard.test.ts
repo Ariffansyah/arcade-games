@@ -470,6 +470,7 @@ test("a player the deal missed sits down with a fresh hand, and keeps theirs com
   assert.equal(join(joined, "c"), joined, "already seated");
 
   const left = leave(joined);
+  assert.deepEqual(left.last, { by: current(joined), act: "leave", card: -1 });
   const back = join(left, current(joined));
   assert.deepEqual(back.hands[current(joined)], joined.hands[current(joined)]);
   assert.equal(join({ ...g, hands: { ...g.hands, c: [] } }, "c").order.length, 2, "out on Mercy");
