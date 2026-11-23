@@ -292,7 +292,7 @@ export const HOWTO: Record<string, Guide> = {
       "Every turn has a 30-second clock. Let it run out and you check if that's free, otherwise you fold.",
     ],
     scoring:
-      "Hands rank high card, pair, two pair, three of a kind, straight, flush, full house, four of a kind, straight flush. Equal hands split the pot. All in for less than the bet, you can only win as much from each player as you put in; the rest is a side pot for the others. Out of chips, you sit out until the host starts a new game.",
+      "Hands rank high card, pair, two pair, three of a kind, straight, flush, full house, four of a kind, straight flush. Equal hands split the pot. All in for less than the bet, you can only win as much from each player as you put in; the rest is a side pot for the others. Lose every chip and you can buy back in for 500, half a stack, and play on from the next hand.",
     tips: [
       "Fold more than you think. Most two-card hands are not worth chasing.",
       "Acting after everyone else is an edge — you see what they did first. Play more hands on the button.",

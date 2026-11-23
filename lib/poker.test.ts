@@ -4,6 +4,7 @@ import { RANKS, SUITS } from "./cards.ts";
 import {
   BLIND,
   BLINDS_EVERY,
+  REBUY,
   STACK,
   best,
   call,
@@ -15,6 +16,7 @@ import {
   pot,
   raise,
   read,
+  rebuy,
   seat,
   timeout,
   type Poker,
@@ -193,4 +195,18 @@ test("a player the deal missed sits in before the flop, and plays the hand", () 
   assert.equal(pot(h), 4 * BLIND * 2);
   assert.equal(seat(h, "e"), h, "not once the flop is out");
   assert.equal(seat({ ...g, chips: { ...g.chips, e: 0 } }, "e").order.length, 3, "broke waits");
+});
+
+test("out of chips, a player buys back in for half a stack and is dealt the next hand", () => {
+  const busted: Poker = { ...deal("room", ["a", "b"]), won: { b: 1000 }, chips: { a: 0, b: 2000 } };
+  assert.equal(rebuy(busted, "b"), busted, "only when broke");
+
+  const back = rebuy(busted, "a");
+  assert.equal(back.chips.a, REBUY);
+  assert.deepEqual(back.last, { by: "a", act: "rebuy", amount: REBUY });
+  assert.deepEqual(deal("room", ["a", "b"], back).order, ["a", "b"]);
+  assert.deepEqual(deal("room", ["a", "b"], busted).order, ["b"], "without it they sit out");
+
+  const allIn = { ...deal("room", ["a", "b"]), chips: { a: 0, b: 900 } };
+  assert.equal(rebuy(allIn, "a"), allIn, "not while all in on a live hand");
 });

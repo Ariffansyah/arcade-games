@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   BLINDS_EVERY,
   HANDS,
+  REBUY,
   STACK,
   TURN_MS,
   blindAt,
@@ -16,6 +17,7 @@ import {
   pot,
   raise,
   read,
+  rebuy,
   seat,
   timeout,
   type Poker as Game,
@@ -89,7 +91,7 @@ export default function Poker({ code, players, me, name }: GameProps) {
             Texas Hold&apos;em. Two cards each, five shared on the table, and the best five-card
             hand takes the pot. Everyone sits down with {STACK} chips; blinds start at {blindAt(1)}{" "}
             and {blindAt(1) * 2} and double every {BLINDS_EVERY} hands. You get {TURN_MS / 1000}{" "}
-            seconds a turn. Last one with chips wins.
+            seconds a turn. Lose everything and you can buy back in for {REBUY}.
           </p>
           <p className="text-sm text-zinc-400">
             At the table ({players.length}): {players.map((p) => p.name).join(", ")}
@@ -198,7 +200,9 @@ export default function Poker({ code, players, me, name }: GameProps) {
                 ? `bet ${last.amount}`
                 : last.act === "raise"
                   ? `raised to ${last.amount}`
-                  : `is all in for ${last.amount}`
+                  : last.act === "rebuy"
+                    ? `bought back in for ${last.amount}`
+                    : `is all in for ${last.amount}`
       }`;
   const result = table.won
     ? winners
@@ -209,8 +213,8 @@ export default function Poker({ code, players, me, name }: GameProps) {
         .join(" · ")
     : "";
   // The table only carries the latest move, so each screen keeps its own short history of them.
-  const newsKey = `${table.hand}-${table.street}-${pot(table)}-${table.folded.length}-${table.turn}-${!!table.won}`;
-  const news = [lastLine, result].filter(Boolean).join(". ");
+  const newsKey = `${table.hand}-${table.street}-${pot(table)}-${table.folded.length}-${table.turn}-${!!table.won}-${last?.by}-${last?.act}`;
+  const news = last?.act === "rebuy" ? lastLine : [lastLine, result].filter(Boolean).join(". ");
   if (news && log.key !== newsKey)
     setLog({
       key: newsKey,
@@ -386,9 +390,18 @@ export default function Poker({ code, players, me, name }: GameProps) {
           ) : (
             <span className="text-sm text-zinc-400">
               {table.chips[me.id] === 0
-                ? "You're out of chips. A new game deals you back in."
+                ? "You're out of chips."
                 : "You're watching. You'll be dealt in next hand."}
             </span>
+          )}
+
+          {table.chips[me.id] === 0 && (table.won || !seated) && (
+            <button
+              onClick={() => send(rebuy(table, me.id))}
+              className="btn-arcade play-pulse rounded-sm px-4 py-3 text-[0.88rem]"
+            >
+              Buy back in for {REBUY}
+            </button>
           )}
 
           {myTurn && (

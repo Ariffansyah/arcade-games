@@ -2,6 +2,8 @@ import { shuffle } from "./rng.ts";
 import { RANK_NAMES, rank, suit } from "./cards.ts";
 
 export const STACK = 1000;
+// What a player who has lost everything buys back in with.
+export const REBUY = STACK / 2;
 export const BLIND = 10;
 // Blinds double every this many hands, so a long game still comes to an end.
 export const BLINDS_EVERY = 10;
@@ -23,7 +25,7 @@ export const HANDS = [
 
 export type Move = {
   by: string;
-  act: "fold" | "check" | "call" | "bet" | "raise" | "allin";
+  act: "fold" | "check" | "call" | "bet" | "raise" | "allin" | "rebuy";
   amount?: number;
   // The clock ran out and the table moved for them.
   late?: boolean;
@@ -345,5 +347,16 @@ export function seat(g: Poker, id: string): Poker {
     chips: { ...g.chips, [id]: g.chips[id] ?? STACK },
     holes: { ...g.holes, [id]: g.deck.slice(0, 2) },
     deck: g.deck.slice(2),
+  };
+}
+
+// Out of chips, a player buys back in for half a stack and plays on from the next hand — or this
+// one, if the flop isn't out yet. Never mid-hand while they're still in it, all in.
+export function rebuy(g: Poker, id: string): Poker {
+  if (g.chips[id] !== 0 || (!g.won && g.order.includes(id))) return g;
+  return {
+    ...g,
+    chips: { ...g.chips, [id]: REBUY },
+    last: { by: id, act: "rebuy", amount: REBUY },
   };
 }
