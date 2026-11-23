@@ -57,7 +57,7 @@ export function createStage(host: HTMLElement, { frame, tap, hover }: Hooks): St
   const renderer = new THREE.WebGLRenderer({ antialias: quality !== "low" });
   renderer.setPixelRatio(ratio());
   renderer.shadowMap.enabled = quality !== "low";
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   const canvas = renderer.domElement;
   canvas.style.touchAction = "none";
