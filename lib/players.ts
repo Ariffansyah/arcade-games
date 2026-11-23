@@ -29,5 +29,21 @@ export const saveName = (name: string) => {
   }
 };
 
+// Kept per tab, so a reload walks back into the same seat while a second tab is a new player.
+export const session = {
+  get<T>(key: string): T | null {
+    try {
+      return JSON.parse(sessionStorage.getItem(key) ?? "null");
+    } catch {
+      return null;
+    }
+  },
+  set(key: string, value: unknown) {
+    try {
+      sessionStorage.setItem(key, JSON.stringify(value));
+    } catch {}
+  },
+};
+
 export const holderFor = (order: string[], round: number) =>
   order.length ? order[(round - 1) % Math.min(order.length, 2)] : "";

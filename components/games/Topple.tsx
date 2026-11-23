@@ -3,41 +3,63 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { hash, rng } from "@/lib/rng.ts";
+import type * as RAPIER from "@dimforge/rapier3d-compat";
 import {
-  aim,
+  H,
+  L,
+  W,
   canPull,
+  collapse,
+  fallen,
   height,
   leave,
   newTower,
-  pull,
-  risk,
-  steadiness,
+  nextSlot,
+  onTop,
+  place,
+  type Pose,
   type Topple as Tower,
 } from "@/lib/topple.ts";
 import { useTable } from "@/lib/useTable";
+import { useBroadcast } from "@/lib/useBroadcast";
+import { sfx } from "@/lib/sfx";
 import type { GameProps } from "@/lib/useRoom";
-import { createStage, has3D, ease, type Stage } from "./stage";
+import { createStage, has3D, type Stage } from "./stage";
 
-const L = 3;
-const W = 1;
-const H = 0.6;
+type Rapier = typeof RAPIER.default;
 
-type Pose = { p: THREE.Vector3; r: number };
+// Whoever is pulling runs the physics and streams the blocks; everyone else just watches.
+type Live = { round: number; pulls: number; held: number; poses: Pose[] };
 
-const restOf = (level: number, slot: number): Pose =>
-  level % 2
-    ? {
-        p: new THREE.Vector3((slot - 1) * W, H / 2 + level * H, 0),
-        r: Math.PI / 2,
-      }
-    : { p: new THREE.Vector3(0, H / 2 + level * H, (slot - 1) * W), r: 0 };
+type Mode = "idle" | "pull" | "carry" | "lower" | "settle" | "falling" | "done";
 
-const along = (r: number) => (r ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0));
+const GRAVITY = 20;
+const STEP = 1 / 120;
+const PULL_SPEED = 6;
+// Slide slower than this and nothing above notices. Faster, and friction drags the next level
+// along with the block, harder the faster you go.
+const SAFE_SPEED = 2.2;
+const GRIP = 2.2;
+// The block in hand is thinned a touch so the tower settles onto its neighbours, the way a
+// finger loosens a real one. Whatever was resting on it alone is now resting on nothing.
+const LOOSE = 0.012;
+const LIFT_SPEED = 8;
+const CARRY_SPEED = 9;
+const LIVE_MS = 80;
 
-// Where the meter's sweet spot sits for this attempt, somewhere between -0.45 and 0.45.
-const spotFor = (t: Tower, id: number) => (hash(`${t.round}:${t.pulls}:${id}`) % 900) / 1000 - 0.45;
-const sweepsPerSecond = (r: number) => 0.45 + r * 1.1;
+const HINT: Record<Mode, string> = {
+  idle: "Your pull — drag a block out along its length. Drag empty space to orbit.",
+  pull: "Slow and steady… yank it and the blocks above come with it.",
+  carry: "Lift it over the tower and let go on top.",
+  lower: "Setting it down…",
+  settle: "Letting the tower settle…",
+  falling: "It's going!",
+  done: "Nice pull.",
+};
+
+const keyOf = (t: Tower) => `${t.round}:${t.pulls}`;
+const trim = (p: Pose) =>
+  p.map((v, i) => Math.round(v * (i < 3 ? 1000 : 10000)) / (i < 3 ? 1000 : 10000)) as Pose;
 
 function woodTexture() {
   const canvas = document.createElement("canvas");
@@ -65,13 +87,16 @@ function woodTexture() {
 type Piece = {
   mesh: THREE.Mesh;
   material: THREE.MeshStandardMaterial;
-  rest: Pose;
-  slide: number;
-  path: { keys: Pose[]; t: number; dur: number; delay: number } | null;
-  fall: { v: THREE.Vector3; w: THREE.Vector3 } | null;
+  p: THREE.Vector3;
+  q: THREE.Quaternion;
+  wait: number;
 };
 
-type View = { sync: (t: Tower) => void };
+type View = {
+  sync: (t: Tower, mine: boolean) => void;
+  live: (l: Live) => void;
+  auto: (id: number) => void;
+};
 
 const STEPS: Record<string, number> = {
   ArrowRight: 1,
@@ -81,50 +106,66 @@ const STEPS: Record<string, number> = {
 };
 
 export default function Topple({ code, players, me }: GameProps) {
-  const [table, send] = useTable<Tower>(`topple:${code}`, me.id);
+  const [saved, send] = useTable<Tower>(`topple:${code}`, me.id);
+  // A table from the meter version of this game has no poses to stand on; deal a fresh tower.
+  const table = saved?.poses ? saved : null;
   const mount = useRef<HTMLDivElement>(null);
-  const needle = useRef<HTMLDivElement>(null);
   const view = useRef<View | null>(null);
   const [failed] = useState(() => !has3D());
+  const [ready, setReady] = useState(false);
+  const [mode, setMode] = useState<Mode>("idle");
   const [cursor, setCursor] = useState(-1);
-  const latest = useRef({ table, myTurn: false, send, cursor });
-  const meter = useRef(0);
+  const stream = useBroadcast<Live>(`topple-live:${code}`, "live", (l) => view.current?.live(l));
 
   const isHost = players[0]?.id === me.id;
   const up = table && !table.loser ? table.order[table.turn] : "";
   const myTurn = up === me.id;
-  const aiming = myTurn && table!.aim >= 0 ? table!.aim : -1;
-  const r = aiming >= 0 ? risk(table!, aiming) : 0;
+  const latest = useRef({ table, myTurn, send, stream, cursor });
 
   useEffect(() => {
-    latest.current = { table, myTurn, send, cursor };
+    latest.current = { table, myTurn, send, stream, cursor };
   });
-
-  const choose = (id: number) => {
-    const { table: t, myTurn: mine, send: push } = latest.current;
-    if (!t || !mine || !canPull(t, id)) return;
-    push(aim(t, id === t.aim ? -1 : id));
-  };
-
-  const commit = () => {
-    if (!table || aiming < 0) return;
-    const zone = steadiness(risk(table, aiming));
-    send(pull(table, aiming, Math.abs(meter.current - spotFor(table, aiming)) / zone));
-  };
 
   useEffect(() => {
     const host = mount.current;
     if (!host || failed) return;
     const texture = woodTexture();
-    const geometry = new RoundedBoxGeometry(L, H - 0.03, W - 0.04, 2, 0.05);
+    const geometry = new RoundedBoxGeometry(L, H - 0.02, W - 0.04, 2, 0.05);
     const tower = new THREE.Group();
     const pieces: Piece[] = [];
+    let R: Rapier | null = null;
+    let alive = true;
+
+    let world: RAPIER.World | null = null;
+    let bodies: RAPIER.RigidBody[] = [];
+    let simFor = "";
+    let start: Pose[] = [];
+    let state: Mode = "idle";
+    let held = -1;
+    let taken = -1;
     let hovered = -1;
-    let wobble = 0;
+    let liveHeld = -1;
     let round = -1;
-    let fallen = false;
-    let stump = 0;
+    let acc = 0;
+    let calm = 0;
+    let clock = 0;
+    let lastLive = 0;
     let camY = 4;
+    let carryY = 0;
+    let robot = false;
+    const origin = new THREE.Vector3();
+    const axis = new THREE.Vector3();
+    const offset = new THREE.Vector3();
+    const target = new THREE.Vector3();
+    const carryQ = new THREE.Quaternion();
+    let along = 0;
+    let planeY = 0;
+    let slot: Pose | null = null;
+
+    const setState = (next: Mode) => {
+      state = next;
+      setMode(next);
+    };
 
     const pieceFor = (i: number) => {
       while (pieces.length <= i) {
@@ -140,96 +181,282 @@ export default function Topple({ code, players, me }: GameProps) {
         mesh.receiveShadow = true;
         mesh.userData.id = pieces.length;
         tower.add(mesh);
-        pieces.push({
-          mesh,
-          material,
-          rest: restOf(0, 0),
-          slide: 0,
-          path: null,
-          fall: null,
-        });
+        pieces.push({ mesh, material, p: new THREE.Vector3(), q: new THREE.Quaternion(), wait: 0 });
       }
       return pieces[i];
+    };
+
+    const aimAt = (poses: Pose[]) =>
+      poses.forEach((pose, i) => {
+        const piece = pieceFor(i);
+        piece.p.set(pose[0], pose[1], pose[2]);
+        piece.q.set(pose[3], pose[4], pose[5], pose[6]);
+      });
+
+    const poseOf = (b: RAPIER.RigidBody): Pose => {
+      const t = b.translation();
+      const q = b.rotation();
+      return [t.x, t.y, t.z, q.x, q.y, q.z, q.w];
+    };
+    const now = () => bodies.map(poseOf);
+
+    const free = () => {
+      world?.free();
+      world = null;
+      bodies = [];
+      simFor = "";
+    };
+
+    const build = (t: Tower) => {
+      if (!R) return;
+      free();
+      const w = new R.World({ x: 0, y: -GRAVITY, z: 0 });
+      w.timestep = STEP;
+      w.numSolverIterations = 10;
+      w.createCollider(
+        R.ColliderDesc.cuboid(40, 0.5, 40).setTranslation(0, -0.5, 0).setFriction(0.8)
+      );
+      bodies = t.poses.map((p) => {
+        const b = w.createRigidBody(
+          R!.RigidBodyDesc.dynamic()
+            .setTranslation(p[0], p[1], p[2])
+            .setRotation({ x: p[3], y: p[4], z: p[5], w: p[6] })
+            .setLinearDamping(0.05)
+            .setAngularDamping(0.4)
+        );
+        w.createCollider(
+          R!.ColliderDesc.cuboid(L / 2, H / 2, W / 2 - 0.01)
+            .setFriction(0.45)
+            .setRestitution(0.02)
+            .setDensity(1),
+          b
+        );
+        return b;
+      });
+      world = w;
+      simFor = keyOf(t);
+      start = t.poses;
+      held = -1;
+      taken = -1;
+      robot = false;
+      setState("idle");
+    };
+
+    const grab = (id: number, point: THREE.Vector3) => {
+      const b = bodies[id];
+      if (!b || !R) return;
+      const t = b.translation();
+      origin.set(t.x, t.y, t.z);
+      const r = b.rotation();
+      axis.set(1, 0, 0).applyQuaternion(new THREE.Quaternion(r.x, r.y, r.z, r.w));
+      axis.y = 0;
+      axis.normalize();
+      offset.copy(point).sub(origin);
+      planeY = point.y;
+      along = 0;
+      target.copy(origin);
+      b.collider(0).setHalfExtents({ x: L / 2, y: H / 2 - LOOSE, z: W / 2 - 0.01 });
+      b.setBodyType(R.RigidBodyType.KinematicPositionBased, true);
+      held = id;
+      taken = id;
+      // A block already clear of the tower (dropped on the floor) goes straight to the hand.
+      if (Math.max(Math.abs(t.x), Math.abs(t.z)) > 2.2) lift();
+      else setState("pull");
+    };
+
+    const lift = () => {
+      const poses = now();
+      const b = bodies[held];
+      const t = b.translation();
+      slot = nextSlot(poses, held, t.x, t.z);
+      carryQ.set(slot[3], slot[4], slot[5], slot[6]);
+      carryY = height(poses, held) * H + H * 1.8;
+      offset.set(0, 0, 0);
+      planeY = carryY;
+      target.set(t.x, carryY, t.z);
+      setState("carry");
+    };
+
+    const drop = (b: RAPIER.RigidBody) => {
+      if (!R) return;
+      b.collider(0).setHalfExtents({ x: L / 2, y: H / 2, z: W / 2 - 0.01 });
+      b.setBodyType(R.RigidBodyType.Dynamic, true);
+      b.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      b.setAngvel({ x: 0, y: 0, z: 0 }, true);
+    };
+
+    const release = () => {
+      if (held < 0) return;
+      const b = bodies[held];
+      if (state === "carry") {
+        const t = b.translation();
+        if (Math.max(Math.abs(t.x), Math.abs(t.z)) < 2.8) {
+          slot = nextSlot(now(), held, t.x, t.z);
+          carryQ.set(slot[3], slot[4], slot[5], slot[6]);
+          target.set(slot[0], slot[1] + 0.03, slot[2]);
+          setState("lower");
+          return;
+        }
+      }
+      drop(b);
+      held = -1;
+      robot = false;
+      setState("idle");
+    };
+
+    // The hand: the held block chases its target at a human pace, along its length while it is
+    // still in the tower, then up and over once it is out.
+    const hand = (dt: number) => {
+      if (held < 0) return;
+      const b = bodies[held];
+      const t = b.translation();
+      const pos = new THREE.Vector3(t.x, t.y, t.z);
+      const r = b.rotation();
+      const q = new THREE.Quaternion(r.x, r.y, r.z, r.w);
+
+      if (state === "pull") {
+        const want = target.clone().sub(origin).dot(axis);
+        const step = Math.max(-PULL_SPEED * dt, Math.min(PULL_SPEED * dt, want - along));
+        along += step;
+        pos.copy(origin).addScaledVector(axis, along);
+        const speed = Math.abs(step) / dt;
+        if (speed > SAFE_SPEED) {
+          const level = Math.round((origin.y - H / 2) / H);
+          const kick = GRIP * Math.min(1, (speed - SAFE_SPEED) / 3) * GRAVITY * dt * Math.sign(step);
+          bodies.forEach((other, i) => {
+            if (i === held || Math.round((other.translation().y - H / 2) / H) !== level + 1) return;
+            const m = other.mass();
+            other.applyImpulse({ x: axis.x * m * kick, y: 0, z: axis.z * m * kick }, true);
+          });
+        }
+        if (Math.abs(along) > L + 0.15) lift();
+      } else if (state === "carry" || state === "lower") {
+        const dy = target.y - pos.y;
+        pos.y += Math.sign(dy) * Math.min(Math.abs(dy), LIFT_SPEED * dt);
+        // Rise clear before moving across, so the block never sweeps through the tower.
+        if (state === "lower" || Math.abs(target.y - pos.y) < 0.05) {
+          const flat = new THREE.Vector3(target.x - pos.x, 0, target.z - pos.z);
+          const d = flat.length();
+          if (d > 0) pos.addScaledVector(flat, Math.min(1, (CARRY_SPEED * dt) / d));
+        }
+        q.slerp(carryQ, Math.min(1, dt * 8));
+        if (state === "lower" && pos.distanceTo(target) < 0.01 && q.angleTo(carryQ) < 0.01) {
+          b.setNextKinematicTranslation(pos);
+          b.setNextKinematicRotation(carryQ);
+          drop(b);
+          held = -1;
+          robot = false;
+          calm = 0;
+          clock = 0;
+          setState("settle");
+          return;
+        }
+        if (robot && state === "carry" && slot) {
+          target.set(slot[0], carryY, slot[2]);
+          if (Math.hypot(pos.x - slot[0], pos.z - slot[2]) < 0.02) release();
+        }
+      }
+      b.setNextKinematicTranslation(pos);
+      b.setNextKinematicRotation(q);
+    };
+
+    const finish = (next: Tower) => {
+      latest.current.send(next);
+      setState("done");
+    };
+
+    const simulate = (dt: number, time: number) => {
+      if (!world) return;
+      const t = latest.current.table;
+      if (!t || keyOf(t) !== simFor) return;
+      const moving = held >= 0 || bodies.some((b) => !b.isSleeping());
+      if (!moving && state === "idle") return;
+
+      acc += dt;
+      let n = 0;
+      while (acc >= STEP && n < 8) {
+        hand(STEP);
+        world.step();
+        acc -= STEP;
+        n++;
+      }
+      if (n === 8) acc = 0;
+      const poses = now();
+      aimAt(poses);
+      for (const piece of pieces) {
+        piece.mesh.position.copy(piece.p);
+        piece.mesh.quaternion.copy(piece.q);
+      }
+
+      if (time * 1000 - lastLive > LIVE_MS) {
+        lastLive = time * 1000;
+        latest.current.stream({ round: t.round, pulls: t.pulls, held, poses: poses.map(trim) });
+      }
+
+      if (state !== "falling" && state !== "done" && fallen(start, poses, taken)) {
+        if (held >= 0) drop(bodies[held]);
+        held = -1;
+        clock = 0;
+        setState("falling");
+      }
+      clock += dt;
+      if (state === "falling" && clock > 2.6) finish(collapse(t, poses.map(trim)));
+
+      if (state === "settle") {
+        const still = bodies.every((b) => {
+          const v = b.linvel();
+          const w = b.angvel();
+          return Math.hypot(v.x, v.y, v.z) < 0.03 && Math.hypot(w.x, w.y, w.z) < 0.06;
+        });
+        calm = still ? calm + dt : 0;
+        if (calm > 0.5 || clock > 6) {
+          if (onTop(poses, taken)) finish(place(t, poses.map(trim), taken));
+          else setState("idle");
+        }
+      }
     };
 
     const stage: Stage = createStage(host, {
       frame: (dt, time) => {
         const { table: t, myTurn: mine, cursor: cur } = latest.current;
-        const aimed = t && !t.loser ? t.aim : -1;
-        tower.rotation.z = Math.sin(time * 1.6) * wobble * 0.03;
-        tower.rotation.x = Math.cos(time * 1.3) * wobble * 0.02;
-
-        if (aimed >= 0 && t && mine) {
-          meter.current = Math.sin(time * Math.PI * 2 * sweepsPerSecond(risk(t, aimed)));
-          if (needle.current) needle.current.style.left = `${(meter.current + 1) * 50}%`;
-        }
-        const outside =
-          aimed >= 0 && t && mine
-            ? Math.abs(meter.current - spotFor(t, aimed)) / steadiness(risk(t, aimed)) > 1
-            : false;
-
-        for (const [i, piece] of pieces.entries()) {
-          const { mesh } = piece;
-          if (piece.fall) {
-            const { v, w } = piece.fall;
-            v.y -= 20 * dt;
-            mesh.position.addScaledVector(v, dt);
-            mesh.rotation.x += w.x * dt;
-            mesh.rotation.y += w.y * dt;
-            mesh.rotation.z += w.z * dt;
-            // Whatever lands on the part still standing rests on it and slides off the edge.
-            const onStump = Math.abs(mesh.position.x) < 1.5 && Math.abs(mesh.position.z) < 1.5;
-            const ground = (onStump ? stump : 0) + H / 2;
-            if (mesh.position.y < ground && mesh.position.y > ground - H) {
-              mesh.position.y = ground;
-              v.set(v.x * 0.6, Math.abs(v.y) > 1.5 ? -v.y * 0.25 : 0, v.z * 0.6);
-              w.multiplyScalar(0.6);
+        const driven = !!world && mine && (held >= 0 || state !== "idle");
+        if (driven) simulate(dt, time);
+        else {
+          if (world && mine) simulate(dt, time);
+          const k = 1 - Math.exp(-dt * 14);
+          for (const piece of pieces) {
+            if (piece.wait > 0) {
+              piece.wait -= dt;
+              continue;
             }
-            continue;
+            piece.mesh.position.lerp(piece.p, k);
+            piece.mesh.quaternion.slerp(piece.q, k);
           }
-          if (piece.path) {
-            piece.material.emissive.setHex(0x000000);
-            const path = piece.path;
-            path.t += dt;
-            const u =
-              Math.max(0, Math.min(1, (path.t - path.delay) / path.dur)) * (path.keys.length - 1);
-            const seg = Math.min(Math.floor(u), path.keys.length - 2);
-            const k = ease(u - seg);
-            const a = path.keys[seg];
-            const b = path.keys[seg + 1];
-            mesh.position.lerpVectors(a.p, b.p, k);
-            mesh.rotation.set(0, a.r + (b.r - a.r) * k, 0);
-            if (path.t >= path.delay + path.dur) piece.path = null;
-            continue;
-          }
-          const want = i === aimed ? 0.6 : 0;
-          piece.slide += (want - piece.slide) * Math.min(1, dt * 7);
-          mesh.position.copy(piece.rest.p).addScaledVector(along(piece.rest.r), piece.slide);
-          if (i === aimed && outside) mesh.position.y += Math.sin(time * 70) * 0.025;
-          mesh.rotation.set(0, piece.rest.r, 0);
+        }
 
-          const live = !!t && mine && !t.loser && canPull(t, i);
+        const grabbing = mine ? held : liveHeld;
+        for (const [i, piece] of pieces.entries()) {
+          const live = !!t && mine && state === "idle" && canPull({ ...t, poses: start }, i);
           const glow =
-            i === aimed ? 0xff2d95 : live && (i === hovered || i === cur) ? 0x22d3ee : 0x000000;
+            i === grabbing ? 0xff2d95 : live && (i === hovered || i === cur) ? 0x22d3ee : 0x000000;
           piece.material.emissive.setHex(glow);
-          piece.material.emissiveIntensity = i === aimed ? 0.5 + Math.sin(time * 8) * 0.2 : 0.45;
+          piece.material.emissiveIntensity =
+            i === grabbing ? 0.45 + Math.sin(time * 8) * 0.15 : 0.4;
         }
 
-        if (stage) {
-          const target = t ? Math.max(3, (height(t) * H) / 2) : 4.5;
-          camY += (target - camY) * Math.min(1, dt * 2);
-          stage.controls.target.y = camY;
-        }
-      },
-      tap: (e) => {
-        const hit = stage.pick(e, tower.children);
-        if (hit) choose(hit.object.userData.id);
+        const goal = t ? Math.max(3, (height(t.poses) * H) / 2) : 4.5;
+        camY += (goal - camY) * Math.min(1, dt * 2);
+        stage.controls.target.y = camY;
       },
       hover: (e) => {
+        if (held >= 0) return;
         const hit = stage.pick(e, tower.children);
         hovered = hit ? hit.object.userData.id : -1;
         const { table: t, myTurn: mine } = latest.current;
-        host.style.cursor = t && mine && hovered >= 0 && canPull(t, hovered) ? "pointer" : "grab";
+        host.style.cursor =
+          t && mine && state === "idle" && hovered >= 0 && canPull({ ...t, poses: start }, hovered)
+            ? "grab"
+            : "";
       },
     });
     const s = stage;
@@ -238,114 +465,137 @@ export default function Topple({ code, players, me }: GameProps) {
     s.controls.minDistance = 8;
     s.controls.maxDistance = 32;
 
-    const build = (t: Tower) => {
-      fallen = false;
-      t.blocks.forEach((b, i) => {
-        const piece = pieceFor(i);
-        piece.rest = restOf(b.level, b.slot);
-        piece.fall = null;
-        piece.slide = 0;
-        const from = {
-          p: piece.rest.p.clone().add(new THREE.Vector3(0, 9 + b.level * 0.4, 0)),
-          r: piece.rest.r + 1.2,
-        };
-        piece.path = {
-          keys: [from, piece.rest],
-          t: 0,
-          dur: 0.55,
-          delay: b.level * 0.05 + b.slot * 0.02,
-        };
-      });
+    const ray = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    const onPlane = (e: PointerEvent, y: number) => {
+      const r = s.canvas.getBoundingClientRect();
+      ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(ndc, s.camera);
+      return ray.ray.intersectPlane(
+        new THREE.Plane(new THREE.Vector3(0, 1, 0), -y),
+        new THREE.Vector3()
+      );
     };
 
-    const topple = (t: Tower) => {
-      fallen = true;
-      const random = rng(hash(`${t.round}:${t.pulls}:fall`));
-      const angle = random() * Math.PI * 2;
-      const dir = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-      const pivot = t.moved >= 0 ? t.blocks[t.moved].level : 0;
-      stump = pivot * H;
-      t.blocks.forEach((b, i) => {
+    // Runs before the orbit controls see the press, so grabbing a block never spins the camera.
+    const onDown = (e: PointerEvent) => {
+      const { table: t, myTurn: mine } = latest.current;
+      if (!t || !mine || !world || state !== "idle" || keyOf(t) !== simFor) return;
+      const hit = s.pick(e, tower.children);
+      if (!hit) return;
+      const id = hit.object.userData.id as number;
+      if (id !== taken && !canPull({ ...t, poses: now() }, id)) return;
+      s.controls.enabled = false;
+      s.canvas.setPointerCapture(e.pointerId);
+      grab(id, hit.point);
+      host.style.cursor = "grabbing";
+    };
+    const onMove = (e: PointerEvent) => {
+      if (held < 0 || robot || state === "lower") return;
+      const at = onPlane(e, planeY);
+      if (!at) return;
+      at.sub(offset);
+      if (state === "pull") target.copy(at);
+      else target.set(at.x, carryY, at.z);
+    };
+    const onUp = () => {
+      s.controls.enabled = true;
+      host.style.cursor = "";
+      if (!robot) release();
+    };
+    host.addEventListener("pointerdown", onDown, { capture: true });
+    s.canvas.addEventListener("pointermove", onMove);
+    s.canvas.addEventListener("pointerup", onUp);
+    s.canvas.addEventListener("pointercancel", onUp);
+
+    const rebuild = (t: Tower) => {
+      aimAt(t.poses);
+      t.poses.forEach((pose, i) => {
         const piece = pieceFor(i);
-        piece.path = null;
-        piece.material.emissive.setHex(0x000000);
-        if (b.level < pivot) return;
-        const above = b.level - pivot + 1;
-        piece.fall = {
-          v: dir
-            .clone()
-            .multiplyScalar(1.2 + above * 0.45 + random() * 1.5)
-            .add(new THREE.Vector3((random() - 0.5) * 2, random() * 2.5, (random() - 0.5) * 2)),
-          w: new THREE.Vector3(random() - 0.5, random() - 0.5, random() - 0.5).multiplyScalar(7),
-        };
+        const level = Math.round((pose[1] - H / 2) / H);
+        piece.mesh.position.set(pose[0], pose[1] + 9 + level * 0.4, pose[2]);
+        piece.mesh.quaternion.copy(piece.q);
+        piece.wait = level * 0.05 + (i % 3) * 0.02;
       });
+      for (const piece of pieces.slice(t.poses.length)) piece.mesh.visible = false;
     };
 
     view.current = {
-      sync: (t) => {
-        wobble = t.loser ? 0 : t.wobble;
+      sync: (t, mine) => {
         if (t.round !== round) {
           round = t.round;
-          build(t);
-          return;
+          free();
+          rebuild(t);
+        } else if (keyOf(t) !== simFor || !mine) aimAt(t.poses);
+        liveHeld = -1;
+        if (mine && !t.loser) {
+          if (keyOf(t) !== simFor) build(t);
+        } else {
+          free();
+          if (state !== "idle") setState("idle");
         }
-        if (t.loser) {
-          if (!fallen) topple(t);
+      },
+      live: (l) => {
+        const { table: t, myTurn: mine } = latest.current;
+        if (!t || mine || l.round !== t.round || l.pulls !== t.pulls) return;
+        aimAt(l.poses);
+        liveHeld = l.held;
+      },
+      auto: (id) => {
+        const { table: t, myTurn: mine } = latest.current;
+        if (!t || !mine || !world || state !== "idle" || !canPull({ ...t, poses: now() }, id))
           return;
-        }
-        t.blocks.forEach((b, i) => {
-          const piece = pieceFor(i);
-          const rest = restOf(b.level, b.slot);
-          if (rest.p.equals(piece.rest.p)) return;
-          const from = { p: piece.mesh.position.clone(), r: piece.rest.r };
-          const out = {
-            p: from.p.clone().addScaledVector(along(from.r), L * 0.75),
-            r: from.r,
-          };
-          const lift = height(t) * H + 1.6;
-          piece.path = {
-            keys: [
-              from,
-              out,
-              { p: out.p.clone().setY(lift), r: from.r },
-              { p: rest.p.clone().setY(lift), r: rest.r },
-              rest,
-            ],
-            t: 0,
-            dur: 1.5,
-            delay: 0,
-          };
-          piece.rest = rest;
-          piece.slide = 0;
-        });
+        const b = bodies[id].translation();
+        grab(id, new THREE.Vector3(b.x, b.y, b.z));
+        robot = true;
+        // Push it out toward whichever end faces the camera.
+        const toward = s.camera.position.clone().setY(0).dot(axis) >= 0 ? 1 : -1;
+        target.copy(origin).addScaledVector(axis, toward * (L + 0.5));
       },
     };
-    view.current.sync(latest.current.table ?? newTower([]));
+
+    import("@dimforge/rapier3d-compat").then(async (m) => {
+      await m.default.init();
+      if (!alive) return;
+      R = m.default;
+      setReady(true);
+      const t = latest.current.table;
+      if (t) view.current?.sync(t, latest.current.myTurn);
+    });
+    const first = latest.current.table ?? newTower([]);
+    round = first.round;
+    rebuild(first);
 
     return () => {
+      alive = false;
       view.current = null;
+      free();
+      host.removeEventListener("pointerdown", onDown, { capture: true });
       texture.dispose();
       s.dispose();
     };
   }, [failed]);
 
   useEffect(() => {
-    if (table) view.current?.sync(table);
-  }, [table]);
+    if (table) view.current?.sync(table, myTurn);
+  }, [table, myTurn]);
+
+  useEffect(() => {
+    if (table?.pulls) sfx.clack();
+  }, [table?.pulls]);
+  useEffect(() => {
+    if (table?.loser) sfx.crash();
+  }, [table?.loser]);
 
   const pullable =
-    table && myTurn && aiming < 0
-      ? table.blocks
-          .map((b, i) => ({ i, at: b.level * 3 + b.slot }))
+    table && myTurn && mode === "idle"
+      ? table.poses
+          .map((p, i) => ({ i, at: Math.round((p[1] - H / 2) / H) * 3 + i }))
           .filter(({ i }) => canPull(table, i))
           .sort((a, b) => a.at - b.at)
           .map(({ i }) => i)
       : [];
   const onKey = (e: React.KeyboardEvent) => {
-    if (aiming >= 0 && (e.key === " " || e.key === "Enter")) {
-      e.preventDefault();
-      return commit();
-    }
     if (!pullable.length) return;
     const at = Math.max(0, pullable.indexOf(cursor));
     const step = STEPS[e.key];
@@ -355,7 +605,7 @@ export default function Topple({ code, players, me }: GameProps) {
     }
     if ((e.key === "Enter" || e.key === " ") && cursor >= 0) {
       e.preventDefault();
-      choose(cursor);
+      view.current?.auto(cursor);
     }
   };
 
@@ -369,9 +619,6 @@ export default function Topple({ code, players, me }: GameProps) {
         table?.falls ?? {}
       )
     );
-  const zone = aiming >= 0 ? steadiness(r) : 0;
-  const spot = aiming >= 0 ? spotFor(table!, aiming) : 0;
-  const riskWord = r > 0.5 ? "very risky" : r > 0.25 ? "risky" : r > 0.12 ? "fair" : "safe";
 
   const status = !table
     ? isHost
@@ -380,16 +627,17 @@ export default function Topple({ code, players, me }: GameProps) {
     : table.loser
       ? `${name(table.loser)} brought the tower down!`
       : myTurn
-        ? aiming >= 0
-          ? "Stop the needle inside the glowing window."
-          : "Your pull — tap a block below the top. Drag to orbit."
-        : `${name(up)} is ${table.aim >= 0 ? "easing a block out…" : "picking a block…"}`;
+        ? ready
+          ? HINT[mode]
+          : "Loading the physics…"
+        : `${name(up)} is pulling…`;
 
   return (
     <div className="flex w-full max-w-3xl flex-col items-center gap-4">
       <p className="text-center text-sm text-zinc-400">
-        Take turns pulling a block and stacking it on top. Whoever brings the tower down loses the
-        round.
+        Take turns sliding a block out with your mouse or finger and setting it on top. Real
+        physics: pull carelessly and the blocks above come with it. Whoever brings the tower down
+        loses the round.
       </p>
 
       <ul className="flex flex-wrap justify-center gap-2">
@@ -405,7 +653,7 @@ export default function Topple({ code, players, me }: GameProps) {
               {id === me.id && " (you)"}
             </span>{" "}
             <span className="text-red-400" title="Towers knocked down">
-              {"▼".repeat(table?.falls[id] ?? 0)}
+              {"▼".repeat(Math.min(99, table?.falls[id] ?? 0))}
             </span>
           </li>
         ))}
@@ -428,8 +676,8 @@ export default function Topple({ code, players, me }: GameProps) {
         ref={mount}
         tabIndex={0}
         onKeyDown={onKey}
-        aria-label="Tower. Arrow keys pick a block, Enter takes it, Space pulls."
-        className="cab relative h-[58vh] max-h-[600px] min-h-[340px] w-full overflow-hidden rounded-md outline-none focus-visible:border-cyan-400"
+        aria-label="Tower. Arrow keys pick a block, Enter pulls it out and stacks it on top."
+        className="cab relative h-[62vh] max-h-[640px] min-h-[360px] w-full touch-none overflow-hidden rounded-md outline-none focus-visible:border-cyan-400"
       >
         {failed && (
           <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-red-400">
@@ -439,43 +687,10 @@ export default function Topple({ code, players, me }: GameProps) {
         )}
         {table && !table.loser && (
           <span className="pixel pointer-events-none absolute top-3 left-3 text-[0.5rem] text-zinc-400">
-            {height(table)} levels · sway {Math.round(table.wobble * 100)}%
+            {height(table.poses)} levels · {table.pulls} pulls
           </span>
         )}
       </div>
-
-      {aiming >= 0 && (
-        <div className="flex w-full max-w-xl flex-col gap-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-zinc-400">
-              This block is{" "}
-              <span className={r > 0.25 ? "text-red-400" : "text-emerald-400"}>{riskWord}</span>
-            </span>
-            <button
-              onClick={() => choose(aiming)}
-              className="btn-ghost rounded-sm px-2 py-1 text-[0.5rem]"
-            >
-              Pick another
-            </button>
-          </div>
-          <div className="relative h-6 overflow-hidden rounded-sm border-2 border-zinc-700 bg-zinc-950/80">
-            <div
-              className="absolute inset-y-0 bg-emerald-500/40 shadow-[0_0_16px_var(--color-emerald-500)]"
-              style={{
-                left: `${(spot - zone + 1) * 50}%`,
-                width: `${zone * 100}%`,
-              }}
-            />
-            <div
-              ref={needle}
-              className="absolute inset-y-0 w-1 -translate-x-1/2 bg-white shadow-[0_0_10px_white]"
-            />
-          </div>
-          <button onClick={commit} className="btn-arcade rounded-sm py-3">
-            Pull
-          </button>
-        </div>
-      )}
 
       {upGone && isHost && table && !table.loser && (
         <button

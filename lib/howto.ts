@@ -258,18 +258,20 @@ export const HOWTO: Record<string, Guide> = {
   lastcard: {
     goal: "Get rid of every card in your hand before anyone else does.",
     round: [
-      "The host deals seven cards each and turns one face up to start the pile.",
+      "The host picks a deck — Classic or Flip — deals seven cards each and turns one face up to start the pile.",
       "On your turn play one card that matches the top card's colour or its face. Wilds go on anything and let you call the colour.",
       "Can't go, or don't want to? Draw one. If it fits you may play it straight away, otherwise the turn moves on.",
-      "Skip jumps the next player, Reverse turns the table around, +2 and Wild +4 make the next player pick up and lose their turn.",
-      "Down to one card and the whole room sees LAST CARD over your name.",
+      "Skip jumps the next player, Reverse turns the table around, and draw cards make the next player pick up and lose their turn.",
+      "A Wild Draw is only fair when you hold nothing in the current colour. The next player can take it or challenge: caught bluffing, you pick up instead; played fair, they pick up two extra.",
+      "Flip deck: every card has a dark side. Play a Flip and the whole table turns over. The dark side hits harder — Draw Five, Skip Everyone, and Wild Draw Colour, which keeps dealing until the called colour turns up.",
     ],
     scoring:
-      "Whoever empties their hand takes the round and scores everything still held by everyone else: number cards at face value, action cards 20, wilds 50. Scores carry over between rounds.",
+      "Whoever empties their hand takes the round and scores everything still held by everyone else: numbers at face value, action cards 20 (10 to 30 on the Flip deck), wilds 50 (40 to 60 on Flip). Going out on a draw card still makes the next player pick up first, and those cards count. Scores carry over between rounds.",
     tips: [
       "Hang on to a wild. It is the only card that always gets you out of a corner.",
       "Two players? Reverse works like a Skip, so it is a free extra turn.",
-      "Watch the card counts. Whoever is on one or two is who your +2 is for.",
+      "In Flip you can see the other side of everyone else's cards — that is what they will be holding when the table turns.",
+      "Challenge a Wild Draw when the player had plenty of cards and a long pause before laying it.",
     ],
   },
 
@@ -277,16 +279,17 @@ export const HOWTO: Record<string, Guide> = {
     goal: "Keep the tower standing longer than everyone else. Whoever knocks it down loses the round.",
     round: [
       "The tower starts fifteen levels high, three blocks a level, every level crossing the one below it.",
-      "On your turn tap any block below the top. Nothing comes out of the top level, or out of the one under it while the top is still being built.",
-      "A meter appears with a needle sweeping across it. Stop it inside the glowing window to ease the block out cleanly; the block then goes on top by itself.",
-      "Miss the window and the tower sways. Sway carries over to the next pull, and enough of it brings the whole thing down.",
+      "On your turn grab any block below the top and drag it out along its length with your mouse or finger. Nothing comes out of the top level, or out of the one under it while the top is still being built.",
+      "Once it is clear of the tower it lifts into your hand. Carry it over the top and let go: it drops into the nearest free spot.",
+      "It is real physics. Slide too fast and friction drags the level above along with it; take a block that was holding something up and the tower goes.",
+      "No mouse? Arrow keys pick a block and Enter pulls it out and stacks it for you.",
     ],
     scoring:
       "The player who drops the tower takes a mark against their name. Fewest marks after a few rebuilds is the winner.",
     tips: [
-      "Middle blocks out of a full level are the safest pulls. Leaving one edge block holding a level up is the riskiest thing you can do.",
-      "Riskier blocks get a narrower window and a faster needle, so the risk label is worth reading before you commit.",
-      "A clean pull lets the sway settle. After a bad miss, the next player is pulling from a tower that is still rocking.",
+      "The middle block of a full level is the safest pull — the two edges keep everything above balanced.",
+      "Never take an edge block once the middle of that level is gone. Whatever sits on it is left on one block.",
+      "Go slow. A steady pull leaves the tower alone; a yank drags the next level with it.",
     ],
   },
 
@@ -326,17 +329,20 @@ export const HOWTO: Record<string, Guide> = {
     goal: "Be the last player with money. Everyone else goes bankrupt paying you rent.",
     round: [
       "Everyone starts on GO with $1500. On your turn roll two dice and your pawn hops that many squares; pass GO and you collect $200.",
-      "Land on a street, train line or utility nobody owns and you can buy it. Pass, and it stays with the bank.",
-      "Land on one somebody owns and you pay them rent automatically. Glitch and Bonus squares draw a card; taxes go to the bank.",
+      "Land on a street, train line or utility nobody owns and you can buy it. Pass on it and it goes to auction: everyone takes turns raising or dropping out, and the last bidder standing pays.",
+      "Land on one somebody owns and you pay them rent automatically. Taxes go to the bank.",
+      "Glitch and Bonus squares draw the top card of their deck. Cards can pay you, charge you, move you, or send you to jail — and a get-out-of-jail card stays in your hand until you need it.",
       "Own a whole colour set and its rent doubles. Then build houses — evenly across the set — and a fifth turns into a hotel.",
-      "Doubles roll again, but a third double in one turn sends you to jail. In jail, roll doubles or pay $50 to walk out; after three misses you pay and go.",
+      "On your turn you can also mortgage a deed for half its price (it charges no rent until you pay that back plus 10%), sell buildings back at half price, or offer another player a trade of deeds and cash.",
+      "Doubles roll again, but a third double in one turn sends you to jail. In jail, roll doubles, use a card or pay $50 to walk out; after three misses you pay and go.",
     ],
     scoring:
-      "Run out of money and the bank sells your buildings back at half price first. If that still is not enough you are out, and everything you own goes to whoever you owed. Last one standing wins. The host can call it early, in which case the highest net worth — cash plus deeds plus buildings — takes it.",
+      "Run out of money and your buildings are sold back at half price, then your deeds are mortgaged. If that still is not enough you are out, and everything you own goes to whoever you owed. Last one standing wins. The host can call it early, in which case the highest net worth — cash plus deeds plus buildings — takes it.",
     tips: [
       "The orange and red sets get landed on more than any others: jail sits just before them.",
       "Three houses is where rent jumps hardest. Get a set to three before spreading out.",
-      "Keep some cash back. Selling buildings to pay rent only gets you half of what you spent.",
+      "Auctions are where bargains happen. If nobody else can afford it, a deed can go for $10.",
+      "A trade that finishes someone's colour set is worth far more to them than the deed's price. Charge for it.",
     ],
   },
 };

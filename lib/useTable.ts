@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { session } from "./players";
 
 type Stamped<T> = { v: number; by: string; table: T };
 
@@ -13,8 +14,10 @@ const isNewer = (next: { v: number; by: string }, held: { v: number; by: string 
 // result, so nobody waits on a host relay or a database write. Two writes racing on the
 // same version settle on the higher player id everywhere, so screens never drift apart.
 export function useTable<T>(topic: string, me: string) {
-  const [table, setTable] = useState<T | null>(null);
-  const held = useRef<Stamped<T> | null>(null);
+  // A reload picks the table back up from this tab, then asks the room for anything newer.
+  const [saved] = useState(() => session.get<Stamped<T>>(`arcade:table:${topic}`));
+  const [table, setTable] = useState<T | null>(saved?.table ?? null);
+  const held = useRef<Stamped<T> | null>(saved);
   const channel = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
@@ -23,6 +26,7 @@ export function useTable<T>(topic: string, me: string) {
       .on("broadcast", { event: "table" }, ({ payload }) => {
         if (!isNewer(payload, held.current)) return;
         held.current = payload;
+        session.set(`arcade:table:${topic}`, payload);
         setTable(payload.table);
       })
       // Someone who arrives mid-game asks the room for the table instead of sitting blank.
@@ -43,6 +47,7 @@ export function useTable<T>(topic: string, me: string) {
     (next: T) => {
       const stamped = { v: (held.current?.v ?? 0) + 1, by: me, table: next };
       held.current = stamped;
+      session.set(`arcade:table:${topic}`, stamped);
       setTable(next);
       channel.current?.send({
         type: "broadcast",
@@ -50,7 +55,7 @@ export function useTable<T>(topic: string, me: string) {
         payload: stamped,
       });
     },
-    [me]
+    [me, topic]
   );
 
   return [table, send] as const;

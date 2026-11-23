@@ -90,7 +90,7 @@ export const BOARD: Space[] = [
   prop("Boss Level Blvd", 7, 400, 200, [50, 200, 600, 1400, 1700, 2000]),
 ];
 
-type Card = {
+export type Card = {
   text: string;
   cash?: number;
   to?: number;
@@ -98,33 +98,63 @@ type Card = {
   jail?: true;
   each?: number;
   repairs?: [number, number];
+  nearest?: "rail" | "util";
+  free?: true;
 };
 
+export type Deck = "glitch" | "bonus";
+
 export const GLITCH: Card[] = [
-  { text: "Warp to GO and collect $200", to: 0 },
-  { text: "Warp to Comet Circle", to: 24 },
-  { text: "Warp to Neon Strip", to: 11 },
+  { text: "Warp to GO. Collect $200", to: 0 },
   { text: "Warp to Boss Level Blvd", to: 39 },
+  { text: "Warp to Comet Circle. Collect $200 if you pass GO", to: 24 },
+  { text: "Warp to Neon Strip. Collect $200 if you pass GO", to: 11 },
+  { text: "Warp to the nearest train line. If it is owned, pay double rent", nearest: "rail" },
+  { text: "Warp to the nearest train line. If it is owned, pay double rent", nearest: "rail" },
+  { text: "Warp to the nearest utility. If it is owned, pay 10× the dice", nearest: "util" },
+  { text: "Ad revenue pays out: collect $50", cash: 50 },
+  { text: "Cheat code: get out of jail free. Keep this card until you need it", free: true },
   { text: "Lag spike: go back 3 spaces", back: 3 },
-  { text: "Busted for cheat codes: go to jail", jail: true },
-  { text: "Speedrun prize: collect $150", cash: 150 },
-  { text: "Overclocking fine: pay $15", cash: -15 },
-  { text: "Server bill: pay every player $50", each: -50 },
+  { text: "Busted for cheat codes: go straight to jail", jail: true },
   { text: "Firmware patch: pay $25 a house, $100 a hotel", repairs: [25, 100] },
+  { text: "Overclocking fine: pay $15", cash: -15 },
+  { text: "Ride the Night Train. Collect $200 if you pass GO", to: 5 },
+  { text: "Elected guild master: pay every player $50", each: -50 },
+  { text: "Speedrun prize: collect $150", cash: 150 },
 ];
 
 export const BONUS: Card[] = [
+  { text: "Warp to GO. Collect $200", to: 0 },
   { text: "Bank glitch in your favour: collect $200", cash: 200 },
-  { text: "Warp to GO and collect $200", to: 0 },
-  { text: "Tournament win: collect $100", cash: 100 },
   { text: "Joystick repair: pay $50", cash: -50 },
   { text: "Sold an old cartridge: collect $50", cash: 50 },
-  { text: "It's your birthday: collect $10 from every player", each: 10 },
+  { text: "Save state: get out of jail free. Keep this card until you need it", free: true },
+  { text: "Caught on camera: go straight to jail", jail: true },
+  { text: "Holiday tournament pays out: collect $100", cash: 100 },
   { text: "Token refund: collect $20", cash: 20 },
-  { text: "Lost your quarters: pay $100", cash: -100 },
-  { text: "Caught on camera: go to jail", jail: true },
-  { text: "High score bonus: collect $25", cash: 25 },
+  { text: "It's your birthday: collect $10 from every player", each: 10 },
+  { text: "Season pass matures: collect $100", cash: 100 },
+  { text: "Arcade repairs: pay $100", cash: -100 },
+  { text: "Coding bootcamp fees: pay $50", cash: -50 },
+  { text: "Beta tester fee: collect $25", cash: 25 },
+  { text: "Neon sign repairs: pay $40 a house, $115 a hotel", repairs: [40, 115] },
+  { text: "Second place in a high-score contest: collect $10", cash: 10 },
+  { text: "Inherit a cabinet collection: collect $100", cash: 100 },
 ];
+
+export const CARDS: Record<Deck, Card[]> = { glitch: GLITCH, bonus: BONUS };
+
+// A deed nobody bought goes round the table: raise or drop out, last one standing pays.
+export type Auction = {
+  space: number;
+  bid: number;
+  leader: string;
+  bidders: string[];
+  turn: number;
+};
+
+// `cash` above zero is paid by the proposer, below zero by the other side.
+export type Trade = { from: string; to: string; give: number[]; get: number[]; cash: number };
 
 export type Landlord = {
   round: number;
@@ -140,6 +170,13 @@ export type Landlord = {
   jail: Record<string, number>;
   out: string[];
 
+  decks: Record<Deck, number[]>;
+  free: Record<string, Deck[]>;
+  drew: { deck: Deck; card: number; by: string; n: number } | null;
+  mortgaged: Record<number, boolean>;
+  auction: Auction | null;
+  trade: Trade | null;
+
   dice: [number, number];
   throws: number;
   doubles: number;
@@ -148,6 +185,16 @@ export type Landlord = {
   log: string[];
   winner: string;
 };
+
+function shuffle(n: number, seed: string) {
+  const random = rng(hash(seed));
+  const out = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
 
 export const newLandlord = (seed: string, order: string[], round = 1): Landlord => ({
   round,
@@ -160,6 +207,15 @@ export const newLandlord = (seed: string, order: string[], round = 1): Landlord 
   houses: {},
   jail: {},
   out: [],
+  decks: {
+    glitch: shuffle(GLITCH.length, `${seed}:${round}:glitch`),
+    bonus: shuffle(BONUS.length, `${seed}:${round}:bonus`),
+  },
+  free: {},
+  drew: null,
+  mortgaged: {},
+  auction: null,
+  trade: null,
   dice: [1, 1],
   throws: 0,
   doubles: 0,
@@ -172,6 +228,13 @@ export const newLandlord = (seed: string, order: string[], round = 1): Landlord 
 export const current = (g: Landlord) => g.order[g.turn];
 export const active = (g: Landlord) => g.order.filter((id) => !g.out.includes(id));
 
+// Whoever the table is waiting on: the bidder in an auction, the other side of a trade, or
+// the player whose turn it is.
+export const actor = (g: Landlord) =>
+  g.auction ? g.auction.bidders[g.auction.turn] : g.trade ? g.trade.to : current(g);
+
+const busy = (g: Landlord) => !!(g.winner || g.auction || g.trade);
+
 const note = (g: Landlord, line: string): Landlord => ({ ...g, log: [...g.log, line].slice(-8) });
 
 const ownedBy = (g: Landlord, id: string) =>
@@ -183,7 +246,7 @@ export const ownsGroup = (g: Landlord, id: string, group: number) =>
 export function rentFor(g: Landlord, i: number, roll: number) {
   const space = BOARD[i];
   const owner = g.owner[i];
-  if (!owner) return 0;
+  if (!owner || g.mortgaged[i]) return 0;
   if (space.kind === "rail")
     return 25 * 2 ** (ownedBy(g, owner).filter((j) => BOARD[j].kind === "rail").length - 1);
   if (space.kind === "util")
@@ -193,9 +256,15 @@ export function rentFor(g: Landlord, i: number, roll: number) {
   return space.rent![0] * (ownsGroup(g, owner, space.group!) ? 2 : 1);
 }
 
+export const mortgageValue = (i: number) => BOARD[i].price! / 2;
+export const liftCost = (i: number) => Math.round(mortgageValue(i) * 1.1);
+
 export function worth(g: Landlord, id: string) {
   return ownedBy(g, id).reduce(
-    (sum, i) => sum + BOARD[i].price! + (g.houses[i] ?? 0) * (BOARD[i].house ?? 0),
+    (sum, i) =>
+      sum +
+      (g.mortgaged[i] ? mortgageValue(i) : BOARD[i].price!) +
+      (g.houses[i] ?? 0) * (BOARD[i].house ?? 0),
     g.cash[id] ?? 0
   );
 }
@@ -205,10 +274,12 @@ function settle(g: Landlord): Landlord {
   return left.length === 1 && !g.winner ? note({ ...g, winner: left[0] }, `${left[0]} wins!`) : g;
 }
 
-// Short of cash, buildings go back to the bank at half what they cost, priciest first.
+// Short of cash, buildings go back to the bank at half what they cost, priciest first, then
+// deeds are mortgaged, cheapest first.
 function liquidate(g: Landlord, id: string, need: number): Landlord {
   const houses = { ...g.houses };
   const cash = { ...g.cash };
+  const mortgaged = { ...g.mortgaged };
   const built = ownedBy(g, id)
     .filter((i) => houses[i])
     .sort((a, b) => BOARD[b].house! - BOARD[a].house!);
@@ -217,25 +288,51 @@ function liquidate(g: Landlord, id: string, need: number): Landlord {
       houses[i]--;
       cash[id] += BOARD[i].house! / 2;
     }
-  return { ...g, houses, cash };
+  const deeds = ownedBy(g, id)
+    .filter((i) => !mortgaged[i])
+    .sort((a, b) => BOARD[a].price! - BOARD[b].price!);
+  for (const i of deeds) {
+    if (cash[id] >= need) break;
+    mortgaged[i] = true;
+    cash[id] += mortgageValue(i);
+  }
+  return { ...g, houses, cash, mortgaged };
 }
 
 // Whatever is left, and every deed, goes to whoever they owed — or back to the bank.
 function bankrupt(g: Landlord, id: string, to = ""): Landlord {
   const owner = { ...g.owner };
   const houses = { ...g.houses };
+  const mortgaged = { ...g.mortgaged };
   for (const i of ownedBy(g, id)) {
     delete houses[i];
     if (to) owner[i] = to;
-    else delete owner[i];
+    else {
+      delete owner[i];
+      delete mortgaged[i];
+    }
   }
   const cash = { ...g.cash, [id]: 0 };
   if (to) cash[to] += g.cash[id];
   const jail = { ...g.jail };
   delete jail[id];
+  // Jail cards go back under their decks.
+  const decks = { ...g.decks };
+  for (const deck of g.free[id] ?? [])
+    decks[deck] = [...decks[deck], CARDS[deck].findIndex((c) => c.free)];
   return settle(
     note(
-      { ...g, cash, owner, houses, jail, out: [...g.out, id] },
+      {
+        ...g,
+        cash,
+        owner,
+        houses,
+        mortgaged,
+        jail,
+        decks,
+        free: { ...g.free, [id]: [] },
+        out: [...g.out, id],
+      },
       `${id} is bankrupt${to ? ` to ${to}` : ""}`
     )
   );
@@ -262,7 +359,16 @@ function arrest(g: Landlord, id: string): Landlord {
   );
 }
 
-function goTo(g: Landlord, id: string, to: number, roll: number, passGo = true): Landlord {
+type Boost = "rail" | "util";
+
+function goTo(
+  g: Landlord,
+  id: string,
+  to: number,
+  roll: number,
+  passGo = true,
+  boost?: Boost
+): Landlord {
   const from = g.pos[id];
   let next: Landlord = { ...g, pos: { ...g.pos, [id]: to } };
   if (passGo && to < from)
@@ -270,12 +376,29 @@ function goTo(g: Landlord, id: string, to: number, roll: number, passGo = true):
       { ...next, cash: { ...next.cash, [id]: next.cash[id] + SALARY } },
       `${id} passes GO`
     );
-  return land(next, id, roll);
+  return land(next, id, roll, boost);
 }
 
-function draw(g: Landlord, id: string, deck: Card[], roll: number): Landlord {
-  const card = deck[Math.floor(rng(hash(`${g.seed}:${g.throws}:${g.pos[id]}`))() * deck.length)];
-  let next = note(g, `${id}: ${card.text}`);
+// Cards come off the top in order and go back underneath, like a real deck. A jail card stays
+// with whoever drew it until it is used.
+function draw(g: Landlord, id: string, deck: Deck, roll: number): Landlord {
+  const [top, ...rest] = g.decks[deck];
+  const card = CARDS[deck][top];
+  let next = note(
+    {
+      ...g,
+      decks: { ...g.decks, [deck]: card.free ? rest : [...rest, top] },
+      drew: { deck, card: top, by: id, n: (g.drew?.n ?? 0) + 1 },
+    },
+    `${id}: ${card.text}`
+  );
+  if (card.free) next = { ...next, free: { ...next.free, [id]: [...(next.free[id] ?? []), deck] } };
+  if (card.nearest) {
+    let to = next.pos[id];
+    do to = (to + 1) % 40;
+    while (BOARD[to].kind !== card.nearest);
+    next = goTo(next, id, to, roll, true, card.nearest);
+  }
   if (card.cash)
     next =
       card.cash > 0
@@ -299,19 +422,19 @@ function draw(g: Landlord, id: string, deck: Card[], roll: number): Landlord {
   return next;
 }
 
-function land(g: Landlord, id: string, roll: number): Landlord {
+function land(g: Landlord, id: string, roll: number, boost?: Boost): Landlord {
   const i = g.pos[id];
   const space = BOARD[i];
   if (space.price) {
     const owner = g.owner[i];
     if (!owner) return { ...g, offer: i };
-    if (owner === id) return g;
-    const rent = rentFor(g, i, roll);
+    if (owner === id || g.mortgaged[i]) return g;
+    const rent = boost === "util" ? 10 * roll : rentFor(g, i, roll) * (boost === "rail" ? 2 : 1);
     return charge(note(g, `${id} pays $${rent} rent to ${owner}`), id, rent, owner);
   }
   if (space.tax) return charge(note(g, `${id} pays $${space.tax} ${space.name}`), id, space.tax);
-  if (space.kind === "glitch") return draw(g, id, GLITCH, roll);
-  if (space.kind === "bonus") return draw(g, id, BONUS, roll);
+  if (space.kind === "glitch") return draw(g, id, "glitch", roll);
+  if (space.kind === "bonus") return draw(g, id, "bonus", roll);
   if (space.kind === "arrest") return arrest(g, id);
   return g;
 }
@@ -319,7 +442,7 @@ function land(g: Landlord, id: string, roll: number): Landlord {
 // A roll with the dice already known, so tests can pick them.
 export function step(g: Landlord, dice: [number, number]): Landlord {
   const id = current(g);
-  if (g.winner || !g.canRoll || g.offer >= 0) return g;
+  if (busy(g) || !g.canRoll || g.offer >= 0) return g;
   const sum = dice[0] + dice[1];
   const double = dice[0] === dice[1];
   let next: Landlord = { ...g, dice, throws: g.throws + 1 };
@@ -351,7 +474,7 @@ export const roll = (g: Landlord): Landlord => {
 export function buy(g: Landlord): Landlord {
   const id = current(g);
   const price = BOARD[g.offer]?.price ?? Infinity;
-  if (g.offer < 0 || g.cash[id] < price) return g;
+  if (busy(g) || g.offer < 0 || g.cash[id] < price) return g;
   return note(
     {
       ...g,
@@ -363,12 +486,99 @@ export function buy(g: Landlord): Landlord {
   );
 }
 
-export const decline = (g: Landlord): Landlord => (g.offer < 0 ? g : { ...g, offer: -1 });
+// Passing on a deed puts it up for auction, starting with whoever passed.
+export function decline(g: Landlord): Landlord {
+  if (busy(g) || g.offer < 0) return g;
+  const left = active(g);
+  const start = left.indexOf(current(g));
+  const bidders = [...left.slice(start), ...left.slice(0, start)];
+  return note(
+    { ...g, offer: -1, auction: { space: g.offer, bid: 0, leader: "", bidders, turn: 0 } },
+    `${BOARD[g.offer].name} goes up for auction`
+  );
+}
+
+function hammer(g: Landlord): Landlord {
+  const a = g.auction!;
+  const name = BOARD[a.space].name;
+  if (!a.bidders.length) return note({ ...g, auction: null }, `Nobody bids on ${name}`);
+  if (a.bidders.length > 1 || a.leader !== a.bidders[0]) return g;
+  return note(
+    {
+      ...g,
+      auction: null,
+      cash: { ...g.cash, [a.leader]: g.cash[a.leader] - a.bid },
+      owner: { ...g.owner, [a.space]: a.leader },
+    },
+    `${a.leader} wins ${name} at auction for $${a.bid}`
+  );
+}
+
+export function bid(g: Landlord, amount: number): Landlord {
+  const a = g.auction;
+  if (!a || g.winner) return g;
+  const id = a.bidders[a.turn];
+  if (!Number.isInteger(amount) || amount <= a.bid || amount > g.cash[id]) return g;
+  return hammer({
+    ...g,
+    auction: { ...a, bid: amount, leader: id, turn: (a.turn + 1) % a.bidders.length },
+  });
+}
+
+export function fold(g: Landlord): Landlord {
+  const a = g.auction;
+  if (!a || g.winner) return g;
+  const bidders = a.bidders.filter((_, k) => k !== a.turn);
+  return hammer({
+    ...g,
+    auction: { ...a, bidders, turn: bidders.length ? a.turn % bidders.length : 0 },
+  });
+}
+
+const builtGroup = (g: Landlord, i: number) =>
+  BOARD[i].group !== undefined &&
+  BOARD.some((s, j) => s.group === BOARD[i].group && (g.houses[j] ?? 0) > 0);
+
+export const canMortgage = (g: Landlord, i: number) =>
+  !busy(g) && g.owner[i] === current(g) && !g.mortgaged[i] && !builtGroup(g, i);
+
+export function mortgage(g: Landlord, i: number): Landlord {
+  if (!canMortgage(g, i)) return g;
+  const id = current(g);
+  return note(
+    {
+      ...g,
+      mortgaged: { ...g.mortgaged, [i]: true },
+      cash: { ...g.cash, [id]: g.cash[id] + mortgageValue(i) },
+    },
+    `${id} mortgages ${BOARD[i].name}`
+  );
+}
+
+export const canLift = (g: Landlord, i: number) =>
+  !busy(g) && g.owner[i] === current(g) && !!g.mortgaged[i] && g.cash[current(g)] >= liftCost(i);
+
+export function lift(g: Landlord, i: number): Landlord {
+  if (!canLift(g, i)) return g;
+  const id = current(g);
+  const mortgaged = { ...g.mortgaged };
+  delete mortgaged[i];
+  return note(
+    { ...g, mortgaged, cash: { ...g.cash, [id]: g.cash[id] - liftCost(i) } },
+    `${id} pays off the mortgage on ${BOARD[i].name}`
+  );
+}
 
 export function canBuild(g: Landlord, i: number) {
   const id = current(g);
   const space = BOARD[i];
-  if (g.winner || space.kind !== "prop" || g.owner[i] !== id || !ownsGroup(g, id, space.group!))
+  if (
+    busy(g) ||
+    space.kind !== "prop" ||
+    g.owner[i] !== id ||
+    !ownsGroup(g, id, space.group!) ||
+    BOARD.some((s, j) => s.group === space.group && g.mortgaged[j])
+  )
     return false;
   const built = g.houses[i] ?? 0;
   const lowest = Math.min(
@@ -392,9 +602,82 @@ export function build(g: Landlord, i: number): Landlord {
   );
 }
 
+// Houses come back down evenly too, at half what they cost.
+export function canSell(g: Landlord, i: number) {
+  const built = g.houses[i] ?? 0;
+  if (busy(g) || g.owner[i] !== current(g) || !built) return false;
+  return BOARD.every((s, j) => s.group !== BOARD[i].group || (g.houses[j] ?? 0) <= built);
+}
+
+export function sell(g: Landlord, i: number): Landlord {
+  if (!canSell(g, i)) return g;
+  const id = current(g);
+  return note(
+    {
+      ...g,
+      houses: { ...g.houses, [i]: g.houses[i] - 1 },
+      cash: { ...g.cash, [id]: g.cash[id] + BOARD[i].house! / 2 },
+    },
+    `${id} sells a building on ${BOARD[i].name}`
+  );
+}
+
+export const tradeable = (g: Landlord, i: number) => !!g.owner[i] && !builtGroup(g, i);
+
+const fits = (g: Landlord, t: Trade) =>
+  t.from !== t.to &&
+  active(g).includes(t.to) &&
+  t.give.every((i) => g.owner[i] === t.from && tradeable(g, i)) &&
+  t.get.every((i) => g.owner[i] === t.to && tradeable(g, i)) &&
+  (t.cash >= 0 ? g.cash[t.from] >= t.cash : g.cash[t.to] >= -t.cash) &&
+  (t.give.length > 0 || t.get.length > 0 || t.cash !== 0);
+
+export function propose(g: Landlord, t: Trade): Landlord {
+  if (busy(g) || g.offer >= 0 || t.from !== current(g) || !fits(g, t)) return g;
+  return note({ ...g, trade: t }, `${t.from} offers ${t.to} a trade`);
+}
+
+export function answer(g: Landlord, yes: boolean): Landlord {
+  const t = g.trade;
+  if (!t || g.winner) return g;
+  if (!yes || !fits(g, t)) return note({ ...g, trade: null }, `${t.to} turns the trade down`);
+  const owner = { ...g.owner };
+  for (const i of t.give) owner[i] = t.to;
+  for (const i of t.get) owner[i] = t.from;
+  return note(
+    {
+      ...g,
+      trade: null,
+      owner,
+      cash: { ...g.cash, [t.from]: g.cash[t.from] - t.cash, [t.to]: g.cash[t.to] + t.cash },
+    },
+    `${t.from} and ${t.to} make a deal`
+  );
+}
+
+export const withdraw = (g: Landlord): Landlord =>
+  g.trade ? note({ ...g, trade: null }, `${g.trade.from} withdraws the offer`) : g;
+
+export function jailCard(g: Landlord): Landlord {
+  const id = current(g);
+  const [deck, ...rest] = g.free[id] ?? [];
+  if (busy(g) || !(id in g.jail) || !g.canRoll || !deck) return g;
+  const jail = { ...g.jail };
+  delete jail[id];
+  return note(
+    {
+      ...g,
+      jail,
+      free: { ...g.free, [id]: rest },
+      decks: { ...g.decks, [deck]: [...g.decks[deck], CARDS[deck].findIndex((c) => c.free)] },
+    },
+    `${id} uses a get-out-of-jail card`
+  );
+}
+
 export function bail(g: Landlord): Landlord {
   const id = current(g);
-  if (!(id in g.jail) || !g.canRoll || g.cash[id] < BAIL) return g;
+  if (busy(g) || !(id in g.jail) || !g.canRoll || g.cash[id] < BAIL) return g;
   const jail = { ...g.jail };
   delete jail[id];
   return note(
@@ -404,21 +687,26 @@ export function bail(g: Landlord): Landlord {
 }
 
 export function end(g: Landlord): Landlord {
-  if (g.winner || (g.canRoll && !g.out.includes(current(g))) || g.offer >= 0) return g;
+  if (busy(g) || (g.canRoll && !g.out.includes(current(g))) || g.offer >= 0) return g;
   let turn = g.turn;
   do turn = (turn + 1) % g.order.length;
   while (g.out.includes(g.order[turn]));
   return { ...g, turn, canRoll: true, doubles: 0, offer: -1 };
 }
 
-// Whoever is up has left the room: everything they own goes back to the bank.
+// Whoever the table is waiting on has left the room. A bidder drops out, a trade is refused,
+// and a player whose turn it is hands everything back to the bank.
 export function leave(g: Landlord): Landlord {
-  return g.winner ? g : end(bankrupt({ ...g, offer: -1 }, current(g)));
+  if (g.winner) return g;
+  if (g.auction) return fold(g);
+  if (g.trade) return answer(g, false);
+  return end(bankrupt({ ...g, offer: -1 }, current(g)));
 }
 
 // Called off early: the richest player on paper wins.
 export function finish(g: Landlord): Landlord {
   if (g.winner) return g;
+  g = { ...g, auction: null, trade: null };
   const winner = active(g).reduce((a, b) => (worth(g, b) > worth(g, a) ? b : a));
   return note({ ...g, winner }, `${winner} wins on net worth`);
 }

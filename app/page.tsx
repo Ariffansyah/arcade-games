@@ -1,203 +1,316 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { GAMES, moodLabel, seatLabel, type GameInfo } from "@/lib/games";
+import { useEffect, useRef, useState } from "react";
+import { GAMES } from "@/lib/games";
 import { cleanName, saveName, storedName } from "@/lib/players";
 import { CODE_LENGTH, cleanCode, isCode, newCode } from "@/lib/room";
+import { music, sfx } from "@/lib/sfx";
+import MenuScene from "@/components/MenuScene";
+import SettingsPanel from "@/components/Settings";
+import GameSelect from "@/components/GameSelect";
 
-type Filter = "all" | "co-op" | "versus";
+type Screen = "splash" | "main" | "join" | "library";
 
-const FILTERS: { id: Filter; label: string; hint: string }[] = [
-  { id: "all", label: "Everything", hint: "Every cabinet on the floor" },
-  { id: "co-op", label: "Together", hint: "Same side — nobody is beating anybody" },
-  { id: "versus", label: "Head to head", hint: "Somebody wins these ones" },
-];
+type Item = { id: string; label: string; hint: string; act: () => void };
 
-function Cabinet({ game }: { game: GameInfo }) {
+function Menu({ items }: { items: Item[] }) {
+  const [at, setAt] = useState(0);
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const focus = (i: number) => {
+    const next = (i + items.length) % items.length;
+    setAt(next);
+    refs.current[next]?.focus();
+    sfx.move();
+  };
+
   return (
-    <article className="cab flex items-start gap-4 rounded-md px-4 py-4">
-      <span
-        aria-hidden
-        className="text-2xl text-emerald-500 drop-shadow-[0_0_10px_var(--color-emerald-500)]"
-      >
-        {game.art}
-      </span>
-      <div className="flex flex-1 flex-col gap-1.5">
-        <h3 className="pixel text-[0.65rem] text-zinc-100">{game.name}</h3>
-        <p className="font-sans text-sm text-zinc-400">{game.blurb}</p>
-        <div className="flex flex-wrap items-center gap-2 pt-0.5">
-          <span className={`tag ${game.mood === "co-op" ? "tag-coop" : "tag-versus"}`}>
-            {moodLabel(game)}
+    <nav aria-label="Main menu" className="flex flex-col gap-1.5">
+      {items.map((item, i) => (
+        <button
+          key={item.id}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
+          autoFocus={i === 0}
+          onFocus={() => setAt(i)}
+          onMouseEnter={() => at !== i && focus(i)}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown" || e.key === "s") focus(i + 1);
+            else if (e.key === "ArrowUp" || e.key === "w") focus(i - 1);
+            else return;
+            e.preventDefault();
+          }}
+          onClick={() => {
+            sfx.select();
+            item.act();
+          }}
+          className={`menu-row group flex items-center gap-4 rounded-sm px-4 py-3 text-left ${
+            at === i ? "menu-row-on" : ""
+          }`}
+        >
+          <span aria-hidden className={`pixel text-[0.7rem] ${at === i ? "neon-magenta" : "opacity-0"}`}>
+            ▶
           </span>
-          <span className="tag">{seatLabel(game)}</span>
-        </div>
-      </div>
-    </article>
+          <span className="flex flex-col gap-1">
+            <span className={`pixel text-sm sm:text-base ${at === i ? "text-zinc-100" : "text-zinc-400"}`}>
+              {item.label}
+            </span>
+            <span
+              className={`font-sans text-base normal-case ${at === i ? "text-zinc-300" : "text-zinc-600"}`}
+            >
+              {item.hint}
+            </span>
+          </span>
+        </button>
+      ))}
+    </nav>
   );
 }
 
 export default function Home() {
   const router = useRouter();
+  const [screen, setScreen] = useState<Screen>("splash");
+  const [options, setOptions] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [code, setCode] = useState("");
-
   const [nick, setNick] = useState(storedName);
-  const [filter, setFilter] = useState<Filter>("all");
 
-  const shown = useMemo(
-    () => (filter === "all" ? GAMES : GAMES.filter((g) => g.mood === filter)),
-    [filter]
-  );
-  const together = GAMES.filter((g) => g.mood === "co-op").length;
-
-  const remember = () => saveName(cleanName(nick));
-
-  const join = (e: React.FormEvent) => {
-    e.preventDefault();
-    remember();
-    if (isCode(code)) router.push(`/room/${code}`);
+  const go = (to: string) => {
+    const name = cleanName(nick);
+    if (name) saveName(name);
+    sfx.start();
+    setLeaving(true);
+    setTimeout(() => router.push(to), 420);
   };
 
+  const begin = () => {
+    if (screen !== "splash") return;
+    sfx.start();
+    music.start();
+    setScreen("main");
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || options) return;
+      if (screen === "splash") {
+        // Otherwise the same Enter press lands on the menu that just appeared.
+        e.preventDefault();
+        return begin();
+      }
+      if (e.key === "Escape" && screen !== "main") {
+        sfx.back();
+        setScreen("main");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  const items: Item[] = [
+    {
+      id: "new",
+      label: "New room",
+      hint: "Open a room and send everyone the code",
+      act: () => go(`/room/${newCode()}`),
+    },
+    { id: "join", label: "Join room", hint: "Got a code? Punch it in", act: () => setScreen("join") },
+    {
+      id: "library",
+      label: "Game library",
+      hint: `All ${GAMES.length} cabinets, what they are and how they play`,
+      act: () => setScreen("library"),
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      hint: "Sound, graphics, display and your name",
+      act: () => setOptions(true),
+    },
+  ];
+
   return (
-    <main className="relative flex min-h-screen flex-col items-center gap-10 overflow-hidden px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-zinc-100">
-      <div className="grid-floor pointer-events-none absolute inset-x-0 bottom-0 h-2/3" />
+    <main className="relative flex min-h-dvh flex-col overflow-hidden text-zinc-100">
+      <MenuScene className="fixed inset-0" />
+      <div
+        aria-hidden
+        className={`pointer-events-none fixed inset-0 transition-colors duration-500 ${
+          screen === "splash"
+            ? "bg-[linear-gradient(180deg,rgba(6,3,13,0.85)_0%,rgba(6,3,13,0.2)_32%,transparent_55%,rgba(6,3,13,0.85)_100%)]"
+            : screen === "library"
+              ? "bg-[#06030d]/80"
+              : "bg-[#06030d]/75 sm:bg-transparent sm:bg-[linear-gradient(90deg,rgba(6,3,13,0.93)_0%,rgba(6,3,13,0.7)_42%,rgba(6,3,13,0.1)_78%)]"
+        }`}
+      />
 
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-96 w-[36rem] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(57,255,136,0.18),transparent)] blur-2xl" />
-
-      <header className="relative flex flex-col items-center gap-3 pt-6 text-center">
-        <span className="neon-cyan pixel text-[0.6rem] tracking-[0.35em]">
-          {GAMES.length} cabinets · {together} you play together
-        </span>
-        <h1 className="marquee hum text-3xl sm:text-5xl">Web Arcade</h1>
-        <p className="max-w-md text-balance text-zinc-400">
-          {GAMES.length} mini-games behind one room code. No accounts, no installs — send the
-          code and whoever shows up is playing.
-        </p>
-      </header>
-
-      <form onSubmit={join} className="relative flex flex-col items-center gap-5">
-        <div className="cab flex flex-col items-center gap-3 rounded-md px-6 py-6 sm:px-8">
-          <label htmlFor="nick" className="text-[0.6rem] text-zinc-400">
-            Your nickname
-          </label>
-          <input
-            id="nick"
-            value={nick}
-            suppressHydrationWarning
-            onChange={(e) => setNick(cleanName(e.target.value))}
-            placeholder="pick a name"
-            maxLength={16}
-            autoComplete="nickname"
-            className="w-52 bg-transparent text-center font-sans text-lg text-zinc-100 outline-none placeholder:text-zinc-700"
-          />
-          <span className="h-px w-40 bg-zinc-800" />
-
-          <label htmlFor="code" className="mt-2 text-[0.6rem] text-zinc-400">
-            Insert room code
-          </label>
-          <input
-            id="code"
-            value={code}
-            onChange={(e) => setCode(cleanCode(e.target.value))}
-            inputMode="text"
-            autoCapitalize="characters"
-            autoCorrect="off"
-            autoComplete="off"
-            spellCheck={false}
-            autoFocus
-            aria-describedby="code-help"
-            placeholder="ABC123"
-            className="neon-green w-56 bg-transparent py-2 text-center text-3xl tracking-[0.3em] outline-none placeholder:text-zinc-700"
-          />
-          <div aria-hidden className="flex gap-1">
-            {Array.from({ length: CODE_LENGTH }, (_, i) => (
-              <span
-                key={i}
-                className={`h-1.5 w-7 rounded-sm transition-colors ${
-                  code.length > i
-                    ? "bg-emerald-500 shadow-[0_0_8px_var(--color-emerald-500)]"
-                    : "bg-zinc-800"
-                }`}
-              />
-            ))}
-          </div>
-
-          <span aria-hidden className="mt-1 h-1.5 w-16 rounded-full bg-zinc-950 shadow-[inset_0_1px_2px_#000]" />
-        </div>
-
-        <div className="flex flex-wrap justify-center gap-3">
-          <button
-            type="submit"
-            disabled={!isCode(code)}
-            className="btn-arcade rounded-sm px-5 py-3 disabled:opacity-40"
-          >
-            Join room
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              remember();
-              router.push(`/room/${newCode()}`);
-            }}
-            className="btn-ghost rounded-sm px-5 py-3"
-          >
-            New room
-          </button>
-        </div>
-        <p id="code-help" className="max-w-sm text-balance text-center text-xs text-zinc-600">
-          Codes are {CODE_LENGTH} characters. Start a new room and send the link — anyone with it
-          lands beside you, and nobody else can find you by guessing.
-        </p>
-      </form>
-
-      <section className="relative flex w-full max-w-3xl flex-col gap-4">
-        <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Filter games">
-          {FILTERS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setFilter(f.id)}
-              aria-pressed={filter === f.id}
-              title={f.hint}
-              className={`btn-ghost rounded-sm px-4 py-2 text-[0.55rem] ${
-                filter === f.id ? "border-emerald-500 text-emerald-400" : ""
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        <h2 className="sr-only">Cabinets</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {shown.map((g) => (
-            <Cabinet key={g.id} game={g} />
-          ))}
-        </div>
-      </section>
-
-      <div className="ticker relative w-full max-w-3xl overflow-hidden py-2 [mask-image:linear-gradient(90deg,transparent,black_12%,black_88%,transparent)]">
-        <div className="flex w-max gap-10 whitespace-nowrap pixel text-[0.55rem] text-zinc-600">
-          {[0, 1].map((copy) => (
-            <span key={copy} aria-hidden={copy === 1} className="flex gap-10">
-              {GAMES.map((g) => (
-                <span key={g.id}>
-                  {g.art} {g.name} — {seatLabel(g)}
-                </span>
-              ))}
-              <span className="neon-cyan">insert coin</span>
+      {screen === "splash" ? (
+        <button
+          onClick={begin}
+          className="relative z-10 flex min-h-dvh w-full flex-col items-center justify-between px-4 pt-[9vh] pb-[8vh] normal-case"
+        >
+          <span className="flex flex-col items-center gap-4">
+            <span className="neon-cyan pixel text-[0.6rem] tracking-[0.4em]">
+              {GAMES.length} cabinets · one room code
             </span>
-          ))}
-        </div>
-      </div>
+            <span className="marquee hum pixel text-4xl sm:text-6xl">Web Arcade</span>
+          </span>
+          <span className="flex flex-col items-center gap-3">
+            <span className="blink pixel neon-magenta text-base sm:text-xl">Press start</span>
+            <span className="text-lg text-zinc-300">Click, tap or press any key</span>
+          </span>
+        </button>
+      ) : (
+        <div className="relative z-10 flex min-h-dvh flex-col gap-8 p-5 sm:p-10">
+          <header className="flex items-start justify-between gap-4">
+            <button
+              onClick={() => {
+                sfx.back();
+                setScreen("main");
+              }}
+              className="flex flex-col items-start gap-2 text-left normal-case"
+              aria-label="Back to the main menu"
+            >
+              <span className="marquee pixel text-2xl sm:text-4xl">Web Arcade</span>
+              <span className="neon-cyan pixel text-[0.5rem] tracking-[0.3em]">
+                {screen === "main" ? "Main menu" : screen === "join" ? "Join a room" : "Game library"}
+              </span>
+            </button>
+            <button
+              onClick={() => setOptions(true)}
+              className="cab mr-10 hidden items-center gap-3 rounded-md px-3 py-2 normal-case sm:flex"
+              aria-label="Profile and settings"
+            >
+              <span className="pixel flex h-8 w-8 items-center justify-center rounded-sm bg-[color:var(--neon-magenta)] text-[0.6rem] text-[#06030d]">
+                {(cleanName(nick) || "?").slice(0, 1).toUpperCase()}
+              </span>
+              <span className="flex flex-col items-start">
+                <span className="pixel text-[0.45rem] text-zinc-500">Player</span>
+                <span className="text-lg text-zinc-200">{cleanName(nick) || "No name yet"}</span>
+              </span>
+            </button>
+          </header>
 
-      <footer className="relative flex flex-col items-center gap-2 text-center text-[0.6rem] text-zinc-600">
-        <Link href="/how-to-play" className="text-zinc-500 underline hover:text-zinc-300">
-          How to play — every cabinet, every rule
-        </Link>
-        Rooms are not listed anywhere. Close the tab and the room is gone.
-      </footer>
+          {screen === "main" && (
+            <div key="main" className="menu-in flex max-w-xl flex-1 flex-col justify-center gap-6">
+              <Menu items={items} />
+            </div>
+          )}
+
+          {screen === "join" && (
+            <form
+              key="join"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (isCode(code)) go(`/room/${code}`);
+                else sfx.error();
+              }}
+              className="menu-in cab flex w-full max-w-md flex-col gap-5 self-start rounded-md p-6"
+            >
+              <label className="flex flex-col gap-2">
+                <span className="pixel text-[0.55rem] text-zinc-400">Your nickname</span>
+                <input
+                  value={nick}
+                  onChange={(e) => setNick(cleanName(e.target.value))}
+                  placeholder="pick a name"
+                  maxLength={16}
+                  autoComplete="nickname"
+                  className="cab rounded-sm px-3 py-2 font-sans text-xl outline-none placeholder:text-zinc-700 focus:border-emerald-500"
+                />
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className="pixel text-[0.55rem] text-zinc-400">Room code</span>
+                <input
+                  value={code}
+                  onChange={(e) => setCode(cleanCode(e.target.value))}
+                  autoFocus
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="ABC123"
+                  className="neon-green cab rounded-sm px-3 py-2 text-center text-4xl tracking-[0.3em] outline-none placeholder:text-zinc-700 focus:border-emerald-500"
+                />
+                <span aria-hidden className="flex justify-center gap-1">
+                  {Array.from({ length: CODE_LENGTH }, (_, i) => (
+                    <span
+                      key={i}
+                      className={`h-1.5 w-8 rounded-sm transition-colors ${
+                        code.length > i
+                          ? "bg-emerald-500 shadow-[0_0_8px_var(--color-emerald-500)]"
+                          : "bg-zinc-800"
+                      }`}
+                    />
+                  ))}
+                </span>
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={!isCode(code)}
+                  className="btn-arcade flex-1 rounded-sm px-5 py-3 disabled:opacity-40"
+                >
+                  Join
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sfx.back();
+                    setScreen("main");
+                  }}
+                  className="btn-ghost rounded-sm px-5 py-3"
+                >
+                  Back
+                </button>
+              </div>
+              <p className="text-base text-zinc-500">
+                Codes are {CODE_LENGTH} characters. Rooms aren&apos;t listed anywhere, so only people
+                with the code can walk in.
+              </p>
+            </form>
+          )}
+
+          {screen === "library" && (
+            <div key="library" className="menu-in mx-auto flex w-full max-w-5xl flex-col gap-3">
+              <GameSelect players={Infinity} action="Open a room" onPlay={() => go(`/room/${newCode()}`)} />
+              <button
+                onClick={() => {
+                  sfx.back();
+                  setScreen("main");
+                }}
+                className="btn-ghost self-center rounded-sm px-5 py-3"
+              >
+                Back
+              </button>
+            </div>
+          )}
+
+          <footer className="mt-auto flex flex-wrap items-center justify-between gap-3 text-base text-zinc-500">
+            <span>No accounts, no installs. Close the tab and the room is gone.</span>
+            <span className="hidden gap-4 sm:flex">
+              <span>
+                <kbd className="keycap">↑</kbd> <kbd className="keycap">↓</kbd> move
+              </span>
+              <span>
+                <kbd className="keycap">Enter</kbd> select
+              </span>
+              <span>
+                <kbd className="keycap">Esc</kbd> back
+              </span>
+            </span>
+          </footer>
+        </div>
+      )}
+
+      {options && (
+        <SettingsPanel
+          start={screen === "main" ? "audio" : "profile"}
+          onRename={setNick}
+          onClose={() => setOptions(false)}
+        />
+      )}
+      {leaving && <div aria-hidden className="screen-wipe fixed inset-0 z-[70] bg-[#06030d]" />}
     </main>
   );
 }

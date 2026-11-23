@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { ease } from "./stage";
+import { sfx } from "@/lib/sfx";
 
 // Box faces in three.js order (+x, -x, +y, -y, +z, -z) and the turn that brings each to the top.
 const FACE_VALUES = [2, 5, 1, 6, 3, 4];
@@ -121,6 +122,7 @@ export function toss(
   d.end = upright(value, (random() - 0.5) * 1.2);
   d.t = 0;
   d.dur = 0.9 + random() * 0.35;
+  sfx.dice();
 }
 
 export function slide(d: Die, to: THREE.Vector3, end = d.end) {

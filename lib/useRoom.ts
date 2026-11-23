@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
-import { cleanName, saveName, sortPlayers, storedName, type Player } from "./players";
+import { cleanName, saveName, session, sortPlayers, storedName, type Player } from "./players";
 
 export type { Player };
 
@@ -32,16 +32,29 @@ export type RoomState = {
 const randomName = () => `Player-${Math.random().toString(36).slice(2, 6)}`;
 
 export function useRoom(code: string, name?: string): RoomState {
-  const [me, setMe] = useState<Player>(() => ({
-    id: crypto.randomUUID(),
-    name: cleanName(name ?? "") || storedName() || randomName(),
-    joinedAt: Date.now(),
-  }));
+  const [me, setMe] = useState<Player>(() => {
+    const saved = typeof window === "undefined" ? null : session.get<Player>(`arcade:me:${code}`);
+    return {
+      id: saved?.id ?? crypto.randomUUID(),
+      name: cleanName(name ?? "") || storedName() || saved?.name || randomName(),
+      joinedAt: saved?.joinedAt ?? Date.now(),
+    };
+  });
 
   const channel = useRef<RealtimeChannel | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [game, setGameState] = useState<string | null>(null);
+  const [game, setGameState] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : session.get<string>(`arcade:game:${code}`)
+  );
   const [connected, setConnected] = useState(false);
+  const gameRef = useRef(game);
+
+  useEffect(() => {
+    gameRef.current = game;
+    session.set(`arcade:game:${code}`, game);
+  }, [code, game]);
+
+  useEffect(() => session.set(`arcade:me:${code}`, me), [code, me]);
 
   useEffect(() => {
     const ch = supabase.channel(`room:${code}`, {
@@ -55,9 +68,16 @@ export function useRoom(code: string, name?: string): RoomState {
       setPlayers(sortPlayers(list));
     })
       .on("broadcast", { event: "game" }, ({ payload }) => setGameState(payload.game))
+      // Whoever just arrived or reloaded asks which cabinet the room is on.
+      .on("broadcast", { event: "which" }, () =>
+        ch.send({ type: "broadcast", event: "game", payload: { game: gameRef.current } })
+      )
       .subscribe((status) => {
         setConnected(status === "SUBSCRIBED");
-        if (status === "SUBSCRIBED") ch.track(me);
+        if (status === "SUBSCRIBED") {
+          ch.track(me);
+          ch.send({ type: "broadcast", event: "which", payload: {} });
+        }
 
         if (status === "CLOSED" || status === "CHANNEL_ERROR") setPlayers([]);
       });

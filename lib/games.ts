@@ -159,7 +159,7 @@ export const GAMES: GameInfo[] = [
   {
     id: "lastcard",
     name: "Last Card",
-    blurb: "Match the colour or the face. Skips, +2s and wilds. Empty your hand first.",
+    blurb: "Match the colour or the face. Skips, draw cards, wilds — and a Flip deck with a dark side.",
     art: "♠",
     seats: 2,
     party: true,
@@ -168,7 +168,7 @@ export const GAMES: GameInfo[] = [
   {
     id: "topple",
     name: "Topple",
-    blurb: "A wooden tower in 3D. Pull a block, stack it on top, don't be the one who drops it.",
+    blurb: "A wooden tower with real physics. Slide a block out by hand, stack it on top, don't be the one who drops it.",
     art: "▤",
     seats: 2,
     party: true,
@@ -195,7 +195,7 @@ export const GAMES: GameInfo[] = [
   {
     id: "landlord",
     name: "Landlord",
-    blurb: "The property game on a 3D board. Buy streets, build hotels, bankrupt your friends.",
+    blurb: "The property game on a 3D board. Buy, auction and trade streets, build hotels, bankrupt your friends.",
     art: "⌂",
     seats: 2,
     party: true,

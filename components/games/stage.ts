@@ -1,5 +1,10 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { settings, subscribe } from "@/lib/settings";
 
 export type Stage = {
   scene: THREE.Scene;
@@ -19,11 +24,39 @@ type Hooks = {
   hover?: (e: PointerEvent) => void;
 };
 
-// One lit, shadowed, orbitable arcade floor that every 3D cabinet builds on.
+const RATIO = { low: 1, medium: 1.5, high: 2 };
+const ratio = () => Math.min(window.devicePixelRatio, RATIO[settings().quality]);
+const glowing = () => settings().bloom && settings().quality !== "low";
+
+// A night sky behind the floor: deep purple fading to black, with a scatter of stars.
+function sky() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 512;
+  const g = canvas.getContext("2d")!;
+  const fade = g.createLinearGradient(0, 0, 0, 512);
+  fade.addColorStop(0, "#05020c");
+  fade.addColorStop(0.55, "#1a0b33");
+  fade.addColorStop(1, "#2a0f45");
+  g.fillStyle = fade;
+  g.fillRect(0, 0, 1024, 512);
+  for (let i = 0; i < 260; i++) {
+    g.fillStyle = `rgba(255,255,255,${0.15 + Math.random() * 0.6})`;
+    const r = Math.random() < 0.08 ? 1.6 : 0.8;
+    g.fillRect(Math.random() * 1024, Math.random() * 330, r, r);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+// One lit, shadowed, orbitable arcade floor that every 3D cabinet builds on. Quality, glow and
+// camera speed come from the player's settings.
 export function createStage(host: HTMLElement, { frame, tap, hover }: Hooks): Stage {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
+  const quality = settings().quality;
+  const renderer = new THREE.WebGLRenderer({ antialias: quality !== "low" });
+  renderer.setPixelRatio(ratio());
+  renderer.shadowMap.enabled = quality !== "low";
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   const canvas = renderer.domElement;
@@ -31,19 +64,21 @@ export function createStage(host: HTMLElement, { frame, tap, hover }: Hooks): St
   host.appendChild(canvas);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x06030d, 40, 90);
+  scene.background = sky();
+  scene.fog = new THREE.Fog(0x0b0618, 40, 90);
 
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.enablePan = false;
   controls.maxPolarAngle = Math.PI * 0.48;
+  controls.rotateSpeed = settings().orbit;
 
   scene.add(new THREE.HemisphereLight(0xd6ccff, 0x120b22, 1.4));
   const sun = new THREE.DirectionalLight(0xfff4e8, 2.4);
   sun.position.set(10, 22, 14);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.setScalar(quality === "high" ? 2048 : 1024);
   Object.assign(sun.shadow.camera, {
     left: -16,
     right: 16,
@@ -73,17 +108,37 @@ export function createStage(host: HTMLElement, { frame, tap, hover }: Hooks): St
   grid.position.y = 0.01;
   scene.add(floor, grid);
 
+  // The glow pass renders off-screen, which skips the canvas's own smoothing; multisample there.
+  const composer = new EffectComposer(
+    renderer,
+    new THREE.WebGLRenderTarget(1, 1, {
+      type: THREE.HalfFloatType,
+      samples: quality === "high" ? 4 : 0,
+    })
+  );
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.45, 0.8);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+
   const resize = () => {
     const w = host.clientWidth;
     const h = host.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h);
+    composer.setPixelRatio(renderer.getPixelRatio());
+    composer.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   };
   const observer = new ResizeObserver(resize);
   observer.observe(host);
   resize();
+  const unsubscribe = subscribe(() => {
+    renderer.setPixelRatio(ratio());
+    controls.rotateSpeed = settings().orbit;
+    resize();
+  });
 
   let then = performance.now();
   renderer.setAnimationLoop((now) => {
@@ -91,7 +146,8 @@ export function createStage(host: HTMLElement, { frame, tap, hover }: Hooks): St
     then = now;
     frame(dt, now / 1000);
     controls.update();
-    renderer.render(scene, camera);
+    if (glowing()) composer.render(dt);
+    else renderer.render(scene, camera);
   });
 
   const ray = new THREE.Raycaster();
@@ -124,6 +180,9 @@ export function createStage(host: HTMLElement, { frame, tap, hover }: Hooks): St
     dispose: () => {
       renderer.setAnimationLoop(null);
       observer.disconnect();
+      unsubscribe();
+      composer.dispose();
+      (scene.background as THREE.Texture).dispose();
       controls.dispose();
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointerup", onUp);

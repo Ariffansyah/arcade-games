@@ -2,9 +2,13 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { settings } from "@/lib/settings";
 
 export default function HelpLink() {
   const here = usePathname();
+
+  // Mounted on every page, so the CRT and animation switches hold everywhere.
+  useEffect(() => void settings(), []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
