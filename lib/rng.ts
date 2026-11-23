@@ -12,3 +12,14 @@ export const hash = (s: string) => {
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return h >>> 0;
 };
+
+// The same seed shuffles the same way on every screen.
+export function shuffle(cards: number[], seed: string) {
+  const random = rng(hash(seed));
+  const out = [...cards];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}

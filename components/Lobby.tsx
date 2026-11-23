@@ -28,6 +28,8 @@ import TallTale from "@/components/games/TallTale";
 import BombSquad from "@/components/games/BombSquad";
 import Mayday from "@/components/games/Mayday";
 import LastCard from "@/components/games/LastCard";
+import Poker from "@/components/games/Poker";
+import Blackjack from "@/components/games/Blackjack";
 import Topple from "@/components/games/Topple";
 import FourInARow from "@/components/games/FourInARow";
 import Yacht from "@/components/games/Yacht";
@@ -51,6 +53,8 @@ const CABINETS: Record<string, React.ComponentType<GameProps>> = {
   bomb: BombSquad,
   mayday: Mayday,
   lastcard: LastCard,
+  poker: Poker,
+  blackjack: Blackjack,
   topple: Topple,
   four: FourInARow,
   yacht: Yacht,

@@ -94,6 +94,53 @@ const ART: Record<string, Art> = {
         </g>
       )),
   },
+  poker: {
+    sky: C.green,
+    line: C.pink,
+    draw: () => (
+      <>
+        {(
+          [
+            [-12, 84, C.cyan, "\u2660"],
+            [10, 116, C.pink, "\u2665"],
+          ] as const
+        ).map(([r, x, colour, s]) => (
+          <g key={s} transform={`rotate(${r} ${x + 20} 100)`}>
+            <rect x={x} y={34} width={40} height={58} rx={5} fill={C.ink} {...line(colour)} />
+            <text x={x + 20} y={72} textAnchor="middle" fontSize={26} fill={colour}>
+              {`${s}\uFE0E`}
+            </text>
+          </g>
+        ))}
+        <circle cx={166} cy={96} r={14} fill={C.ink} {...line(C.amber)} />
+        <circle cx={166} cy={96} r={8} {...line(C.amber, 1.6)} strokeDasharray="3 3" />
+      </>
+    ),
+  },
+  blackjack: {
+    sky: C.cyan,
+    line: C.amber,
+    draw: () => (
+      <>
+        {(
+          [
+            [-10, 92, C.amber, "A"],
+            [10, 128, C.red, "K"],
+          ] as const
+        ).map(([r, x, colour, face]) => (
+          <g key={face} transform={`rotate(${r} ${x + 20} 100)`}>
+            <rect x={x} y={44} width={40} height={58} rx={5} fill={C.ink} {...line(colour)} />
+            <text x={x + 20} y={82} textAnchor="middle" fontSize={24} fill={colour}>
+              {face}
+            </text>
+          </g>
+        ))}
+        <text x={120} y={34} textAnchor="middle" fontSize={22} fill={C.green}>
+          21
+        </text>
+      </>
+    ),
+  },
   topple: {
     sky: C.orange,
     line: C.amber,

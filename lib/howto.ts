@@ -278,6 +278,42 @@ export const HOWTO: Record<string, Guide> = {
     ],
   },
 
+  poker: {
+    goal: "Win every chip at the table. Texas Hold'em: the last player with chips wins the game.",
+    round: [
+      "Everyone sits down with 1000 chips. The dealer button moves one seat each hand; the two players after it post blinds of 10 and 20.",
+      "You get two cards only you can see. Betting starts with the player after the big blind: fold, call the bet, or raise.",
+      "Three shared cards come out (the flop), then a fourth (the turn) and a fifth (the river), with a round of betting after each.",
+      "A raise must be at least as big as the last bet or raise. You can always go all in, even for less than a call.",
+      "Everyone still in at the end shows their cards. The best five-card hand out of your two and the five on the table takes the pot.",
+    ],
+    scoring:
+      "Hands rank high card, pair, two pair, three of a kind, straight, flush, full house, four of a kind, straight flush. Equal hands split the pot. All in for less than the bet, you can only win as much from each player as you put in; the rest is a side pot for the others. Out of chips, you sit out until the host starts a new game.",
+    tips: [
+      "Fold more than you think. Most two-card hands are not worth chasing.",
+      "Acting after everyone else is an edge — you see what they did first. Play more hands on the button.",
+      "Watch what the board makes possible. Four of one suit out means anyone could have a flush.",
+    ],
+  },
+
+  blackjack: {
+    goal: "Beat the dealer: finish closer to 21 than the house without going over, and grow your stack.",
+    round: [
+      "Everyone starts with 1000 chips. Bets go round the table one at a time; add chips and bet, or sit the round out.",
+      "Everyone gets two cards face up. The dealer gets two, one of them face down.",
+      "Number cards count their number, picture cards 10, and aces 1 or 11, whichever helps.",
+      "On your turn hit to take a card or stand to stop. Double down on your first two cards to double the bet and take exactly one more. Over 21 is a bust and loses at once.",
+      "When everyone has played, the dealer turns the hidden card and draws until reaching 17 or more.",
+    ],
+    scoring:
+      "Beat the dealer and your bet pays even money; tie and you get it back. An ace and a ten-card on the first two is blackjack and pays 3 to 2. If the dealer has blackjack, it beats every hand but another blackjack. Run out of chips and the house stakes you a fresh 1000 next round.",
+    tips: [
+      "Stand on 17 or more. The dealer has to keep drawing below 17 and busts often.",
+      "Double down on 10 or 11 when the dealer shows a low card.",
+      "When the dealer shows a 2 to 6, stand on 12 or more and let the house take the risk.",
+    ],
+  },
+
   topple: {
     goal: "Keep the tower standing longer than everyone else. Whoever knocks it down loses the round.",
     round: [

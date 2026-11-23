@@ -294,7 +294,7 @@ const AVATAR_COLOURS = [
 ];
 
 // A little arcade critter per seat, so everyone reads at a glance across the table.
-function Avatar({ seat, className = "" }: { seat: number; className?: string }) {
+export function Avatar({ seat, className = "" }: { seat: number; className?: string }) {
   const colour = AVATAR_COLOURS[seat % AVATAR_COLOURS.length];
   const look = seat % 2 ? 1 : -1;
   return (

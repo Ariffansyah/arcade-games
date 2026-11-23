@@ -1,0 +1,131 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { RANKS, SUITS } from "./cards.ts";
+import {
+  BLIND,
+  STACK,
+  best,
+  call,
+  current,
+  deal,
+  fold,
+  handName,
+  pot,
+  raise,
+  type Poker,
+} from "./poker.ts";
+
+// "As" is the ace of spades, "10h" the ten of hearts.
+const card = (s: string) => {
+  const r = RANKS.indexOf(s.slice(0, -1).toUpperCase());
+  const u = "shdc".indexOf(s.slice(-1));
+  assert.ok(r >= 0 && u >= 0, s);
+  return u * 13 + r;
+};
+const cards = (s: string) => s.split(" ").map(card);
+const total = (g: Poker) => Object.values(g.chips).reduce((s, x) => s + x, 0) + pot(g);
+
+test("card helpers line up with the suit symbols", () => {
+  assert.equal(SUITS[Math.floor(card("Kh") / 13)], "♥");
+});
+
+test("hands rank in the usual order, with kickers and the wheel", () => {
+  const ladder = [
+    "2s 5h 9d Jc Kh",
+    "2s 2h 9d Jc Kh",
+    "2s 2h 9d 9c Kh",
+    "2s 2h 2d Jc Kh",
+    "As 2h 3d 4c 5h",
+    "2s 3h 4d 5c 6h",
+    "2s 5s 9s Js Ks",
+    "2s 2h 2d Jc Jh",
+    "2s 2h 2d 2c Kh",
+    "9s 10s Js Qs Ks",
+  ].map((h) => best(cards(h)));
+  for (let i = 1; i < ladder.length; i++) assert.ok(ladder[i] > ladder[i - 1], `rung ${i}`);
+  assert.equal(handName(ladder[4]), "Straight");
+  assert.ok(best(cards("As Ah 9d 7c 3h")) > best(cards("As Ah 9d 7c 2h")), "kicker counts");
+  assert.equal(best(cards("As Ah 9d 7c 3h")), best(cards("Ac Ad 9h 7s 3d")), "suits don't");
+  assert.equal(handName(best(cards("2h 7h 9h Jh Kh As Ad"))), "Flush", "best five of seven");
+});
+
+test("a deal posts the blinds and the player after the big blind acts first", () => {
+  const g = deal("room", ["a", "b", "c"]);
+  assert.equal(g.bets.b, BLIND);
+  assert.equal(g.bets.c, BLIND * 2);
+  assert.equal(current(g), "a");
+  assert.equal(g.holes.a.length, 2);
+  assert.equal(total(g), 3 * STACK);
+
+  const two = deal("room", ["a", "b"]);
+  assert.equal(two.bets.a, BLIND, "heads-up the button posts the small blind");
+  assert.equal(current(two), "a");
+});
+
+test("once everyone has called and the big blind checks, the flop comes", () => {
+  let g = deal("room", ["a", "b", "c"]);
+  g = call(call(g));
+  assert.equal(current(g), "c", "the big blind gets the option");
+  g = call(g);
+  assert.equal(g.street, 1);
+  assert.equal(g.board.length, 3);
+  assert.deepEqual(g.bets, {});
+  assert.equal(current(g), "b", "first live seat after the button");
+  assert.equal(pot(g), 3 * BLIND * 2);
+});
+
+test("a raise reopens the betting, and folding round to one ends the hand", () => {
+  let g = deal("room", ["a", "b", "c"]);
+  g = raise(g, 60);
+  assert.equal(g.bets.a, 60);
+  g = call(g);
+  g = raise(g, 200);
+  assert.equal(current(g), "a");
+  g = fold(fold(g));
+  assert.deepEqual(g.won, { c: 60 + 60 + 200 });
+  assert.equal(g.chips.c, STACK - 200 + 320);
+  assert.equal(total(g) - pot(g), 3 * STACK);
+});
+
+test("a raise below the minimum is lifted to it", () => {
+  const g = raise(deal("room", ["a", "b", "c"]), 25);
+  assert.equal(g.bets.a, BLIND * 4);
+});
+
+test("a short all-in only wins the pot it covered; the side pot goes to the next best", () => {
+  const prev = { hand: 0, chips: { a: 100, b: 1000, c: 1000 } } as unknown as Poker;
+  let g = deal("room", ["a", "b", "c"], prev);
+  g = {
+    ...g,
+    holes: { a: cards("As Ah"), b: cards("Ks Kh"), c: cards("7c 2d") },
+    deck: cards("9c 5d 3h Js 4c 8h 8d"),
+  };
+  g = raise(g, 100);
+  assert.equal(g.chips.a, 0);
+  g = raise(g, 300);
+  g = call(g);
+  assert.equal(g.street, 1, "a is all in, so b and c play on alone");
+  g = raise(g, 200);
+  g = call(g);
+  g = call(call(g));
+  g = call(call(g));
+  assert.ok(g.won);
+  assert.deepEqual(g.won, { a: 300, b: 800 });
+  assert.equal(g.shown?.a, "Pair");
+  assert.equal(g.chips.a + g.chips.b + g.chips.c, 2100);
+});
+
+test("everyone all in runs the board out to a showdown", () => {
+  const prev = { hand: 0, chips: { a: 50, b: 50 } } as unknown as Poker;
+  const g = call(raise(deal("room", ["a", "b"], prev), 50));
+  assert.equal(g.board.length, 5);
+  assert.ok(g.won);
+  assert.equal(g.chips.a + g.chips.b, 100);
+});
+
+test("busted players sit out the next hand and newcomers get a stack", () => {
+  const prev = { hand: 3, chips: { a: 0, b: 500, c: 700 } } as unknown as Poker;
+  const g = deal("room", ["a", "b", "c", "d"], prev);
+  assert.deepEqual(g.order, ["b", "c", "d"]);
+  assert.equal(g.chips.d + (g.put.d ?? 0), STACK);
+});

@@ -1,4 +1,4 @@
-import { hash, rng } from "./rng.ts";
+import { shuffle } from "./rng.ts";
 
 export const COLOURS = ["red", "yellow", "green", "blue"] as const;
 export const DARK = ["pink", "teal", "orange", "purple"] as const;
@@ -104,16 +104,6 @@ export type LastCard = {
   last: Move | null;
   shuffles: number;
 };
-
-function shuffle(cards: number[], seed: string) {
-  const random = rng(hash(seed));
-  const out = [...cards];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
 
 type Side = Pick<LastCard, "mode" | "dark">;
 
