@@ -22,7 +22,8 @@ export default function HelpLink() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  if (here === "/how-to-play") return null;
+  // Rooms carry their own rules: in the game select and in every game's menu.
+  if (here === "/how-to-play" || here.startsWith("/room/")) return null;
 
   return (
     <a

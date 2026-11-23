@@ -25,6 +25,8 @@ type Hooks = {
 };
 
 const RATIO = { low: 1, medium: 1.5, high: 2 };
+const FOV = 38;
+const WIDEST = 1.25;
 const ratio = () => Math.min(window.devicePixelRatio, RATIO[settings().quality]);
 const glowing = () => settings().bloom && settings().quality !== "low";
 
@@ -67,7 +69,7 @@ export function createStage(host: HTMLElement, { frame, tap, hover }: Hooks): St
   scene.background = sky();
   scene.fog = new THREE.Fog(0x0b0618, 40, 90);
 
-  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
+  const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 200);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.enablePan = false;
@@ -129,6 +131,13 @@ export function createStage(host: HTMLElement, { frame, tap, hover }: Hooks): St
     composer.setPixelRatio(renderer.getPixelRatio());
     composer.setSize(w, h);
     camera.aspect = w / h;
+    // Scenes are framed for a wide screen. On a tall one, widen the view instead of cropping the
+    // sides, so a phone held upright still sees the whole board.
+    const wide = Math.tan(((FOV / 2) * Math.PI) / 180) * WIDEST;
+    camera.fov =
+      camera.aspect >= WIDEST
+        ? FOV
+        : Math.min(80, (2 * Math.atan(wide / camera.aspect) * 180) / Math.PI);
     camera.updateProjectionMatrix();
   };
   const observer = new ResizeObserver(resize);

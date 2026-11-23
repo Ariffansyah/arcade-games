@@ -247,6 +247,13 @@ export default function SettingsPanel({
                 <Row label="Animations" hint="Card flights, menu slides, blinking text">
                   <Toggle label="Animations" on={s.motion} onChange={(motion) => update({ motion })} />
                 </Row>
+                <Row label="Fullscreen games" hint="Fill the whole screen when a game starts">
+                  <Toggle
+                    label="Fullscreen games"
+                    on={s.fullscreen}
+                    onChange={(fullscreen) => update({ fullscreen })}
+                  />
+                </Row>
               </>
             )}
             {tab === "profile" && (

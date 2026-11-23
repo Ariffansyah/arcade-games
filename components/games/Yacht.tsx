@@ -201,149 +201,149 @@ export default function Yacht({ code, players, me }: GameProps) {
         : `${name(up)} is ${table.rolls ? "rolling" : "up"}…`;
 
   return (
-    <div className="flex w-full max-w-3xl flex-col items-center gap-4">
-      <p
-        role="status"
-        className={`text-center text-sm ${table?.done ? "flash-win neon-green pixel text-[0.65rem]" : myTurn ? "text-emerald-400" : "text-zinc-400"}`}
-      >
-        {status}
-      </p>
-
-      <div
-        ref={mount}
-        className="cab relative h-[42vh] max-h-[420px] min-h-[260px] w-full overflow-hidden rounded-md"
-      >
-        {failed && (
-          <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-red-400">
-            This browser could not start 3D graphics. Try another browser or turn on hardware
-            acceleration.
-          </p>
-        )}
+    <div className="absolute inset-0 flex flex-col overflow-hidden lg:flex-row">
+      <div className="relative min-h-0 flex-[1.2] lg:flex-1">
+        <div ref={mount} className="absolute inset-0">
+          {failed && (
+            <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-red-400">
+              This browser could not start 3D graphics. Try another browser or turn on hardware
+              acceleration.
+            </p>
+          )}
+        </div>
+        <p
+          role="status"
+          className={`pointer-events-none absolute top-3 left-1/2 max-w-[90%] -translate-x-1/2 rounded-sm bg-[#06030d]/75 px-3 py-1.5 text-center text-sm sm:text-base ${table?.done ? "flash-win neon-green pixel text-[0.65rem]" : myTurn ? "text-emerald-400" : "text-zinc-300"}`}
+        >
+          {status}
+        </p>
         {table && !table.done && (
-          <span className="pixel pointer-events-none absolute top-3 left-3 text-[0.5rem] text-zinc-400">
+          <span className="pixel pointer-events-none absolute bottom-3 left-3 rounded-sm bg-[#06030d]/70 px-2 py-1 text-[0.5rem] text-zinc-300">
             Roll {table.rolls}/{ROLLS}
           </span>
         )}
+
+        {table && myTurn && !table.done && (
+          <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-center gap-2 p-3">
+            {table.dice.map((d, i) => (
+              <button
+                key={i}
+                onClick={() => toggle(i)}
+                disabled={table.rolls === 0 || table.rolls >= ROLLS}
+                aria-pressed={table.held[i]}
+                aria-label={`Die ${i + 1} shows ${d}${table.held[i] ? ", kept" : ""}`}
+                className={`btn-ghost rounded-sm px-2 py-1 text-2xl normal-case disabled:opacity-50 ${
+                  table.held[i] && table.rolls > 0 ? "border-cyan-400 text-cyan-300" : ""
+                }`}
+              >
+                {table.rolls ? GLYPHS[d] : "·"}
+              </button>
+            ))}
+            <button
+              onClick={() => send(roll(table))}
+              disabled={table.rolls >= ROLLS}
+              className="btn-arcade rounded-sm px-4 py-2 disabled:opacity-40"
+            >
+              {table.rolls === 0 ? "Roll" : `Roll again (${ROLLS - table.rolls})`}
+            </button>
+          </div>
+        )}
       </div>
 
-      {table && myTurn && !table.done && (
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {table.dice.map((d, i) => (
-            <button
-              key={i}
-              onClick={() => toggle(i)}
-              disabled={table.rolls === 0 || table.rolls >= ROLLS}
-              aria-pressed={table.held[i]}
-              aria-label={`Die ${i + 1} shows ${d}${table.held[i] ? ", kept" : ""}`}
-              className={`btn-ghost rounded-sm px-2 py-1 text-2xl normal-case disabled:opacity-50 ${
-                table.held[i] && table.rolls > 0 ? "border-cyan-400 text-cyan-300" : ""
-              }`}
-            >
-              {table.rolls ? GLYPHS[d] : "·"}
-            </button>
-          ))}
-          <button
-            onClick={() => send(roll(table))}
-            disabled={table.rolls >= ROLLS}
-            className="btn-arcade rounded-sm px-4 py-2 disabled:opacity-40"
-          >
-            {table.rolls === 0 ? "Roll" : `Roll again (${ROLLS - table.rolls})`}
-          </button>
-        </div>
-      )}
-
-      {table && (
-        <div className="w-full overflow-x-auto">
-          <table className="cab mx-auto w-full max-w-2xl min-w-[320px] rounded-md text-sm">
-            <thead>
-              <tr className="text-zinc-400">
-                <th className="px-2 py-2 text-left text-[0.5rem]">Box</th>
-                {order.map((id) => (
-                  <th
-                    key={id}
-                    className={`px-2 py-2 text-[0.5rem] ${id === up ? "neon-green" : ""} ${id === me.id ? "underline" : ""}`}
+      <aside className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto border-t-2 border-zinc-800 bg-[#06030d]/60 p-3 lg:w-[26rem] lg:flex-none lg:border-t-0 lg:border-l-2">
+        {table && (
+          <div className="w-full overflow-x-auto">
+            <table className="cab mx-auto w-full min-w-[280px] rounded-md text-sm">
+              <thead>
+                <tr className="text-zinc-400">
+                  <th className="px-2 py-2 text-left text-[0.5rem]">Box</th>
+                  {order.map((id) => (
+                    <th
+                      key={id}
+                      className={`px-2 py-2 text-[0.5rem] ${id === up ? "neon-green" : ""} ${id === me.id ? "underline" : ""}`}
+                    >
+                      {name(id)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {CATEGORIES.map((c, row) => (
+                  <tr
+                    key={c.id}
+                    className={`border-t border-zinc-800 ${row === 6 ? "border-t-2 border-t-zinc-600" : ""}`}
                   >
-                    {name(id)}
-                  </th>
+                    <td className="px-2 py-1 text-zinc-300" title={c.hint}>
+                      {c.label}
+                    </td>
+                    {order.map((id) => {
+                      const got = table.cards[id][c.id as Category];
+                      const offer = canMark && id === me.id && got === undefined;
+                      return (
+                        <td key={id} className="px-1 py-0.5 text-center">
+                          {got !== undefined ? (
+                            <span className="text-zinc-100">{got}</span>
+                          ) : offer ? (
+                            <button
+                              onClick={() => send(mark(table, c.id as Category))}
+                              className="w-full rounded-sm border border-dashed border-emerald-700 px-1 py-0.5 text-emerald-400 normal-case hover:bg-emerald-500/10"
+                              aria-label={`Score ${score(c.id as Category, table.dice)} in ${c.label}`}
+                            >
+                              {score(c.id as Category, table.dice)}
+                            </button>
+                          ) : (
+                            <span className="text-zinc-700">·</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {CATEGORIES.map((c, row) => (
-                <tr
-                  key={c.id}
-                  className={`border-t border-zinc-800 ${row === 6 ? "border-t-2 border-t-zinc-600" : ""}`}
-                >
-                  <td className="px-2 py-1 text-zinc-300" title={c.hint}>
-                    {c.label}
+                <tr className="border-t-2 border-zinc-600 text-zinc-400">
+                  <td className="px-2 py-1 text-xs">
+                    Bonus ({BONUS_AT}+ up top = {BONUS})
                   </td>
                   {order.map((id) => {
-                    const got = table.cards[id][c.id as Category];
-                    const offer = canMark && id === me.id && got === undefined;
+                    const t = totals(table.cards[id]);
                     return (
-                      <td key={id} className="px-1 py-0.5 text-center">
-                        {got !== undefined ? (
-                          <span className="text-zinc-100">{got}</span>
-                        ) : offer ? (
-                          <button
-                            onClick={() => send(mark(table, c.id as Category))}
-                            className="w-full rounded-sm border border-dashed border-emerald-700 px-1 py-0.5 text-emerald-400 normal-case hover:bg-emerald-500/10"
-                            aria-label={`Score ${score(c.id as Category, table.dice)} in ${c.label}`}
-                          >
-                            {score(c.id as Category, table.dice)}
-                          </button>
-                        ) : (
-                          <span className="text-zinc-700">·</span>
-                        )}
+                      <td key={id} className="px-2 py-1 text-center text-xs">
+                        {t.bonus ? BONUS : `${t.upper}/${BONUS_AT}`}
                       </td>
                     );
                   })}
                 </tr>
-              ))}
-              <tr className="border-t-2 border-zinc-600 text-zinc-400">
-                <td className="px-2 py-1 text-xs">
-                  Bonus ({BONUS_AT}+ up top = {BONUS})
-                </td>
-                {order.map((id) => {
-                  const t = totals(table.cards[id]);
-                  return (
-                    <td key={id} className="px-2 py-1 text-center text-xs">
-                      {t.bonus ? BONUS : `${t.upper}/${BONUS_AT}`}
+                <tr className="border-t border-zinc-800">
+                  <td className="pixel px-2 py-2 text-[0.5rem] text-zinc-300">Total</td>
+                  {order.map((id) => (
+                    <td key={id} className="neon-green px-2 py-2 text-center">
+                      {totals(table.cards[id]).total}
                     </td>
-                  );
-                })}
-              </tr>
-              <tr className="border-t border-zinc-800">
-                <td className="pixel px-2 py-2 text-[0.5rem] text-zinc-300">Total</td>
-                {order.map((id) => (
-                  <td key={id} className="neon-green px-2 py-2 text-center">
-                    {totals(table.cards[id]).total}
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {upGone && isHost && table && !table.done && (
-        <button
-          onClick={() => send(leave(table))}
-          className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
-        >
-          Whoever is up left the room — skip them
-        </button>
-      )}
+        {upGone && isHost && table && !table.done && (
+          <button
+            onClick={() => send(leave(table))}
+            className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
+          >
+            Whoever is up left the room — skip them
+          </button>
+        )}
 
-      {isHost && (!table || table.done) && (
-        <button
-          onClick={start}
-          disabled={players.length < 2}
-          className="btn-arcade rounded-sm px-4 py-2 disabled:opacity-40"
-        >
-          {table ? "New game" : "Start"}
-        </button>
-      )}
+        {isHost && (!table || table.done) && (
+          <button
+            onClick={start}
+            disabled={players.length < 2}
+            className="btn-arcade play-pulse rounded-sm px-6 py-3 disabled:opacity-40"
+          >
+            {table ? "New game" : "Start"}
+          </button>
+        )}
+      </aside>
     </div>
   );
 }

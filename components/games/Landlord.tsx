@@ -722,257 +722,347 @@ export default function Landlord({ code, players, me }: GameProps) {
             : `${name(up)} is playing…`;
 
   return (
-    <div className="flex w-full max-w-4xl flex-col items-center gap-4">
-      <ul className="flex flex-wrap justify-center gap-2">
-        {(table ? order : players.slice(0, SEATS).map((p) => p.id)).map((id, seat) => {
-          const out = !!table?.out.includes(id);
-          const cards = table?.free[id]?.length ?? 0;
-          return (
-            <li
-              key={id}
-              className={`cab flex items-center gap-2 rounded-md px-3 py-1.5 text-sm ${
-                waitingOn === id ? "cab-hot" : ""
-              } ${out ? "opacity-40" : ""}`}
+    <div className="absolute inset-0 flex flex-col overflow-hidden lg:flex-row">
+      <div className="relative min-h-0 flex-[1.15] lg:flex-1">
+        <div ref={mount} className="absolute inset-0">
+          {failed && (
+            <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-red-400">
+              This browser could not start 3D graphics. Try another browser or turn on hardware
+              acceleration.
+            </p>
+          )}
+          {table && !table.winner && (
+            <span className="pixel pointer-events-none absolute bottom-3 left-3 hidden text-[0.5rem] text-zinc-400 sm:block">
+              Tap a square for its deed · drag to turn the board
+            </span>
+          )}
+          {table?.drew && drewCard && (
+            <div
+              key={table.drew.n}
+              role="status"
+              className="card-caption pointer-events-none absolute bottom-3 left-1/2 flex w-[min(22rem,90%)] -translate-x-1/2 items-center gap-3 rounded-md border-2 bg-[#f7f3ff] px-3 py-2 text-[#120b22] shadow-[0_8px_24px_rgba(0,0,0,0.6)]"
+              style={
+                {
+                  borderColor: DECKS[table.drew.deck].colour,
+                  "--delay": `${(1.1 + (table.dice[0] + table.dice[1]) * 0.17) * 1000}ms`,
+                } as React.CSSProperties
+              }
             >
               <span
                 aria-hidden
-                className="inline-block h-3 w-3 rounded-full"
-                style={{ background: TOKENS[seat], boxShadow: `0 0 8px ${TOKENS[seat]}` }}
-              />
-              <span className={out ? "text-zinc-500 line-through" : "text-zinc-200"}>
-                {name(id)}
-                {id === me.id && " (you)"}
+                className="pixel flex h-10 w-8 shrink-0 items-center justify-center rounded-sm text-[0.7rem]"
+                style={{ background: DECKS[table.drew.deck].colour }}
+              >
+                {DECKS[table.drew.deck].glyph}
               </span>
-              {table && (
-                <span className="neon-green" title={`Net worth $${worth(table, id)}`}>
-                  ${table.cash[id]}
+              <span className="text-sm leading-tight">
+                <span className="pixel block text-[0.45rem]" style={{ color: "#4a3480" }}>
+                  {name(table.drew.by)} drew {DECKS[table.drew.deck].name}
                 </span>
-              )}
-              {table && id in table.jail && <span className="text-xs text-red-400">jailed</span>}
-              {cards > 0 && (
-                <span
-                  className="text-xs text-[color:var(--neon-amber)]"
-                  title="Get out of jail free"
-                >
-                  jail card ×{cards}
-                </span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-
-      <p
-        role="status"
-        className={`text-center text-sm ${
-          table?.winner
-            ? "flash-win neon-green pixel text-[0.65rem]"
-            : myTurn || bidder === me.id || trade?.to === me.id
-              ? "text-emerald-400"
-              : "text-zinc-400"
-        }`}
-      >
-        {status}
-      </p>
-
-      <div
-        ref={mount}
-        className="cab relative h-[62vh] max-h-[640px] min-h-[340px] w-full overflow-hidden rounded-md"
-      >
-        {failed && (
-          <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-red-400">
-            This browser could not start 3D graphics. Try another browser or turn on hardware
-            acceleration.
-          </p>
-        )}
-        {table && !table.winner && (
-          <span className="pixel pointer-events-none absolute top-3 left-3 text-[0.5rem] text-zinc-400">
-            Tap a square for its deed · drag to turn the board
-          </span>
-        )}
-        {table?.drew && drewCard && (
-          <div
-            key={table.drew.n}
-            role="status"
-            className="card-caption pointer-events-none absolute bottom-3 left-1/2 flex w-[min(22rem,90%)] -translate-x-1/2 items-center gap-3 rounded-md border-2 bg-[#f7f3ff] px-3 py-2 text-[#120b22] shadow-[0_8px_24px_rgba(0,0,0,0.6)]"
-            style={
-              {
-                borderColor: DECKS[table.drew.deck].colour,
-                "--delay": `${(1.1 + (table.dice[0] + table.dice[1]) * 0.17) * 1000}ms`,
-              } as React.CSSProperties
-            }
-          >
-            <span
-              aria-hidden
-              className="pixel flex h-10 w-8 shrink-0 items-center justify-center rounded-sm text-[0.7rem]"
-              style={{ background: DECKS[table.drew.deck].colour }}
-            >
-              {DECKS[table.drew.deck].glyph}
-            </span>
-            <span className="text-sm leading-tight">
-              <span className="pixel block text-[0.45rem]" style={{ color: "#4a3480" }}>
-                {name(table.drew.by)} drew {DECKS[table.drew.deck].name}
+                {drewCard.text}
               </span>
-              {drewCard.text}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {table && myTurn && !table.winner && (
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {offer ? (
-            <>
-              <button
-                onClick={() => send(buy(table))}
-                disabled={table.cash[me.id] < offer.price!}
-                className="btn-arcade rounded-sm px-4 py-2 disabled:opacity-40"
-              >
-                Buy for ${offer.price}
-              </button>
-              <button
-                onClick={() => send(decline(table))}
-                className="btn-ghost rounded-sm px-4 py-2"
-              >
-                Auction it
-              </button>
-            </>
-          ) : table.canRoll ? (
-            <>
-              {jailed && jailCards > 0 && (
-                <button
-                  onClick={() => send(jailCard(table))}
-                  className="btn-ghost rounded-sm px-4 py-2"
-                >
-                  Use jail card
-                </button>
-              )}
-              {jailed && (
-                <button
-                  onClick={() => send(bail(table))}
-                  disabled={table.cash[me.id] < BAIL}
-                  className="btn-ghost rounded-sm px-4 py-2 disabled:opacity-40"
-                >
-                  Pay ${BAIL} bail
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  setPicked(-1);
-                  send(roll(table));
-                }}
-                className="btn-arcade rounded-sm px-5 py-2"
-              >
-                {jailed ? "Roll for doubles" : "Roll"}
-              </button>
-            </>
-          ) : (
-            <button onClick={() => send(end(table))} className="btn-arcade rounded-sm px-5 py-2">
-              End turn
-            </button>
-          )}
-          {!offer && others.length > 0 && (
-            <button
-              onClick={() =>
-                setDeal(deal ? null : { to: others[0], give: [], get: [], pay: 0, ask: 0 })
-              }
-              aria-expanded={!!deal}
-              className="btn-ghost rounded-sm px-4 py-2"
-            >
-              Trade
-            </button>
+            </div>
           )}
         </div>
-      )}
-
-      {table && auction && (
-        <section
-          className="cab flex w-full max-w-xl flex-col items-center gap-3 rounded-md p-4 sm:flex-row sm:items-start"
-          aria-label="Auction"
+        <p
+          role="status"
+          className={`pointer-events-none absolute top-3 left-1/2 max-w-[92%] -translate-x-1/2 rounded-sm bg-[#06030d]/75 px-3 py-1.5 text-center text-sm sm:text-base ${
+            table?.winner
+              ? "flash-win neon-green pixel text-[0.65rem]"
+              : myTurn || bidder === me.id || trade?.to === me.id
+                ? "text-emerald-400"
+                : "text-zinc-400"
+          }`}
         >
-          <div className="w-44 shrink-0">
-            <DeedCard i={auction.space} g={table} name={name} />
-          </div>
-          <div className="flex flex-1 flex-col gap-2 text-sm">
-            <h3 className="pixel text-[0.55rem] text-[color:var(--neon-amber)]">Auction</h3>
-            <p className="text-zinc-200">
-              {auction.leader
-                ? `Top bid $${auction.bid} — ${name(auction.leader)}`
-                : "No bids yet. The bank is selling."}
-            </p>
-            <p className="text-xs text-zinc-400">
-              Still in: {auction.bidders.map((id) => name(id)).join(", ")}
-            </p>
-            {bidder === me.id ? (
-              <div className="flex flex-wrap gap-2">
-                {[10, 50, 100].map((step) => (
-                  <button
-                    key={step}
-                    onClick={() => send(bid(table, auction.bid + step))}
-                    disabled={auction.bid + step > table.cash[me.id]}
-                    className="btn-arcade rounded-sm px-3 py-2 text-[0.55rem] disabled:opacity-40"
+          {status}
+        </p>
+      </div>
+
+      <aside className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto border-t-2 border-zinc-800 bg-[#06030d]/60 p-3 lg:w-[27rem] lg:flex-none lg:border-t-0 lg:border-l-2">
+        <ul className="flex flex-wrap justify-center gap-2">
+          {(table ? order : players.slice(0, SEATS).map((p) => p.id)).map((id, seat) => {
+            const out = !!table?.out.includes(id);
+            const cards = table?.free[id]?.length ?? 0;
+            return (
+              <li
+                key={id}
+                className={`cab flex items-center gap-2 rounded-md px-3 py-1.5 text-sm ${
+                  waitingOn === id ? "cab-hot" : ""
+                } ${out ? "opacity-40" : ""}`}
+              >
+                <span
+                  aria-hidden
+                  className="inline-block h-3 w-3 rounded-full"
+                  style={{ background: TOKENS[seat], boxShadow: `0 0 8px ${TOKENS[seat]}` }}
+                />
+                <span className={out ? "text-zinc-500 line-through" : "text-zinc-200"}>
+                  {name(id)}
+                  {id === me.id && " (you)"}
+                </span>
+                {table && (
+                  <span className="neon-green" title={`Net worth $${worth(table, id)}`}>
+                    ${table.cash[id]}
+                  </span>
+                )}
+                {table && id in table.jail && <span className="text-xs text-red-400">jailed</span>}
+                {cards > 0 && (
+                  <span
+                    className="text-xs text-[color:var(--neon-amber)]"
+                    title="Get out of jail free"
                   >
-                    Bid ${auction.bid + step}
-                  </button>
-                ))}
+                    jail card ×{cards}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+
+        {table && myTurn && !table.winner && (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {offer ? (
+              <>
                 <button
-                  onClick={() => send(fold(table))}
-                  className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
+                  onClick={() => send(buy(table))}
+                  disabled={table.cash[me.id] < offer.price!}
+                  className="btn-arcade rounded-sm px-4 py-2 disabled:opacity-40"
                 >
-                  Drop out
+                  Buy for ${offer.price}
                 </button>
-              </div>
+                <button
+                  onClick={() => send(decline(table))}
+                  className="btn-ghost rounded-sm px-4 py-2"
+                >
+                  Auction it
+                </button>
+              </>
+            ) : table.canRoll ? (
+              <>
+                {jailed && jailCards > 0 && (
+                  <button
+                    onClick={() => send(jailCard(table))}
+                    className="btn-ghost rounded-sm px-4 py-2"
+                  >
+                    Use jail card
+                  </button>
+                )}
+                {jailed && (
+                  <button
+                    onClick={() => send(bail(table))}
+                    disabled={table.cash[me.id] < BAIL}
+                    className="btn-ghost rounded-sm px-4 py-2 disabled:opacity-40"
+                  >
+                    Pay ${BAIL} bail
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setPicked(-1);
+                    send(roll(table));
+                  }}
+                  className="btn-arcade rounded-sm px-5 py-2"
+                >
+                  {jailed ? "Roll for doubles" : "Roll"}
+                </button>
+              </>
             ) : (
-              <p className="blink text-xs text-zinc-500">{name(bidder)} to bid…</p>
+              <button onClick={() => send(end(table))} className="btn-arcade rounded-sm px-5 py-2">
+                End turn
+              </button>
+            )}
+            {!offer && others.length > 0 && (
+              <button
+                onClick={() =>
+                  setDeal(deal ? null : { to: others[0], give: [], get: [], pay: 0, ask: 0 })
+                }
+                aria-expanded={!!deal}
+                className="btn-ghost rounded-sm px-4 py-2"
+              >
+                Trade
+              </button>
             )}
           </div>
-        </section>
-      )}
+        )}
 
-      {table && deal && myTurn && !offer && (
-        <section className="cab flex w-full flex-col gap-3 rounded-md p-4" aria-label="Trade">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="pixel text-[0.55rem] text-[color:var(--neon-cyan)]">Trade with</h3>
-            <select
-              value={dealTo}
-              onChange={(e) => setDeal({ ...deal, to: e.target.value, get: [], ask: 0 })}
-              className="cab rounded-sm px-2 py-1 text-sm"
-              aria-label="Trade with"
-            >
-              {others.map((id) => (
-                <option key={id} value={id}>
-                  {name(id)}
-                </option>
+        {table && auction && (
+          <section
+            className="cab flex w-full max-w-xl flex-col items-center gap-3 rounded-md p-4 sm:flex-row sm:items-start"
+            aria-label="Auction"
+          >
+            <div className="w-44 shrink-0">
+              <DeedCard i={auction.space} g={table} name={name} />
+            </div>
+            <div className="flex flex-1 flex-col gap-2 text-sm">
+              <h3 className="pixel text-[0.55rem] text-[color:var(--neon-amber)]">Auction</h3>
+              <p className="text-zinc-200">
+                {auction.leader
+                  ? `Top bid $${auction.bid} — ${name(auction.leader)}`
+                  : "No bids yet. The bank is selling."}
+              </p>
+              <p className="text-xs text-zinc-400">
+                Still in: {auction.bidders.map((id) => name(id)).join(", ")}
+              </p>
+              {bidder === me.id ? (
+                <div className="flex flex-wrap gap-2">
+                  {[10, 50, 100].map((step) => (
+                    <button
+                      key={step}
+                      onClick={() => send(bid(table, auction.bid + step))}
+                      disabled={auction.bid + step > table.cash[me.id]}
+                      className="btn-arcade rounded-sm px-3 py-2 text-[0.55rem] disabled:opacity-40"
+                    >
+                      Bid ${auction.bid + step}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => send(fold(table))}
+                    className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
+                  >
+                    Drop out
+                  </button>
+                </div>
+              ) : (
+                <p className="blink text-xs text-zinc-500">{name(bidder)} to bid…</p>
+              )}
+            </div>
+          </section>
+        )}
+
+        {table && deal && myTurn && !offer && (
+          <section className="cab flex w-full flex-col gap-3 rounded-md p-4" aria-label="Trade">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="pixel text-[0.55rem] text-[color:var(--neon-cyan)]">Trade with</h3>
+              <select
+                value={dealTo}
+                onChange={(e) => setDeal({ ...deal, to: e.target.value, get: [], ask: 0 })}
+                className="cab rounded-sm px-2 py-1 text-sm"
+                aria-label="Trade with"
+              >
+                {others.map((id) => (
+                  <option key={id} value={id}>
+                    {name(id)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(
+                [
+                  ["You give", me.id, "give", "pay"],
+                  [`${name(dealTo)} gives`, dealTo, "get", "ask"],
+                ] as const
+              ).map(([title, who, list, money]) => (
+                <fieldset key={list} className="flex flex-col gap-2">
+                  <legend className="mb-1 text-xs text-zinc-400">{title}</legend>
+                  <div className="flex flex-wrap gap-1.5">
+                    {BOARD.map((_, i) => i)
+                      .filter((i) => table.owner[i] === who && tradeable(table, i))
+                      .map((i) => (
+                        <label
+                          key={i}
+                          className={`flex cursor-pointer items-center gap-1.5 rounded-sm border px-2 py-1 text-xs ${
+                            deal[list].includes(i)
+                              ? "border-emerald-500 text-zinc-100"
+                              : "border-zinc-700 text-zinc-400"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={deal[list].includes(i)}
+                            onChange={() => setDeal({ ...deal, [list]: toggle(deal[list], i) })}
+                            className="accent-emerald-500"
+                          />
+                          <span
+                            aria-hidden
+                            className="h-2 w-2 rounded-[1px]"
+                            style={{ background: bandOf(i) }}
+                          />
+                          {BOARD[i].name}
+                          {table.mortgaged[i] && " (mortgaged)"}
+                        </label>
+                      ))}
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-zinc-400">
+                    Cash $
+                    <input
+                      type="number"
+                      min={0}
+                      max={table.cash[who]}
+                      step={10}
+                      value={deal[money]}
+                      onChange={(e) =>
+                        setDeal({
+                          ...deal,
+                          [money]: Math.max(
+                            0,
+                            Math.min(table.cash[who], Math.floor(+e.target.value || 0))
+                          ),
+                        })
+                      }
+                      className="cab w-24 rounded-sm px-2 py-1 text-sm"
+                    />
+                  </label>
+                </fieldset>
               ))}
-            </select>
+            </div>
+            <p className="text-xs text-zinc-500">
+              Deeds in a set with buildings on it cannot change hands. Sell the buildings first.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (!pitch) return;
+                  send(propose(table, pitch));
+                  setDeal(null);
+                }}
+                disabled={!pitchOk}
+                className="btn-arcade rounded-sm px-4 py-2 text-[0.55rem] disabled:opacity-40"
+              >
+                Send offer
+              </button>
+              <button
+                onClick={() => setDeal(null)}
+                className="btn-ghost rounded-sm px-4 py-2 text-[0.55rem]"
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        )}
+
+        {table && trade && trade.from === me.id && (
+          <div className="flex items-center gap-3 text-sm text-zinc-400">
+            Offer sent to {name(trade.to)}.
+            <button
+              onClick={() => send(withdraw(table))}
+              className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
+            >
+              Withdraw
+            </button>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(
-              [
-                ["You give", me.id, "give", "pay"],
-                [`${name(dealTo)} gives`, dealTo, "get", "ask"],
-              ] as const
-            ).map(([title, who, list, money]) => (
-              <fieldset key={list} className="flex flex-col gap-2">
-                <legend className="mb-1 text-xs text-zinc-400">{title}</legend>
-                <div className="flex flex-wrap gap-1.5">
-                  {BOARD.map((_, i) => i)
-                    .filter((i) => table.owner[i] === who && tradeable(table, i))
-                    .map((i) => (
-                      <label
-                        key={i}
-                        className={`flex cursor-pointer items-center gap-1.5 rounded-sm border px-2 py-1 text-xs ${
-                          deal[list].includes(i)
-                            ? "border-emerald-500 text-zinc-100"
-                            : "border-zinc-700 text-zinc-400"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={deal[list].includes(i)}
-                          onChange={() => setDeal({ ...deal, [list]: toggle(deal[list], i) })}
-                          className="accent-emerald-500"
-                        />
+        )}
+
+        {table && trade && trade.to === me.id && (
+          <div
+            role="dialog"
+            aria-label="Trade offer"
+            className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4"
+          >
+            <div className="cab flex w-full max-w-md flex-col gap-4 rounded-md p-5">
+              <h3 className="pixel text-[0.6rem] text-[color:var(--neon-cyan)]">
+                {name(trade.from)} offers a trade
+              </h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {(
+                  [
+                    ["You get", trade.give, Math.max(0, trade.cash)],
+                    ["You give", trade.get, Math.max(0, -trade.cash)],
+                  ] as const
+                ).map(([title, deeds, cash]) => (
+                  <div key={title} className="flex flex-col gap-1">
+                    <span className="text-xs text-zinc-400">{title}</span>
+                    {deeds.map((i) => (
+                      <span key={i} className="flex items-center gap-1.5 text-zinc-200">
                         <span
                           aria-hidden
                           className="h-2 w-2 rounded-[1px]"
@@ -980,280 +1070,190 @@ export default function Landlord({ code, players, me }: GameProps) {
                         />
                         {BOARD[i].name}
                         {table.mortgaged[i] && " (mortgaged)"}
-                      </label>
+                      </span>
                     ))}
-                </div>
-                <label className="flex items-center gap-2 text-xs text-zinc-400">
-                  Cash $
-                  <input
-                    type="number"
-                    min={0}
-                    max={table.cash[who]}
-                    step={10}
-                    value={deal[money]}
-                    onChange={(e) =>
-                      setDeal({
-                        ...deal,
-                        [money]: Math.max(
-                          0,
-                          Math.min(table.cash[who], Math.floor(+e.target.value || 0))
-                        ),
-                      })
-                    }
-                    className="cab w-24 rounded-sm px-2 py-1 text-sm"
-                  />
-                </label>
-              </fieldset>
-            ))}
+                    {cash > 0 && <span className="neon-green">${cash}</span>}
+                    {!deeds.length && !cash && <span className="text-zinc-500">nothing</span>}
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  autoFocus
+                  onClick={() => send(answer(table, true))}
+                  className="btn-arcade rounded-sm px-4 py-2"
+                >
+                  Accept
+                </button>
+                <button
+                  onClick={() => send(answer(table, false))}
+                  className="btn-ghost btn-danger rounded-sm px-4 py-2"
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
           </div>
-          <p className="text-xs text-zinc-500">
-            Deeds in a set with buildings on it cannot change hands. Sell the buildings first.
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                if (!pitch) return;
-                send(propose(table, pitch));
-                setDeal(null);
-              }}
-              disabled={!pitchOk}
-              className="btn-arcade rounded-sm px-4 py-2 text-[0.55rem] disabled:opacity-40"
-            >
-              Send offer
-            </button>
-            <button
-              onClick={() => setDeal(null)}
-              className="btn-ghost rounded-sm px-4 py-2 text-[0.55rem]"
-            >
-              Cancel
-            </button>
-          </div>
-        </section>
-      )}
+        )}
 
-      {table && trade && trade.from === me.id && (
-        <div className="flex items-center gap-3 text-sm text-zinc-400">
-          Offer sent to {name(trade.to)}.
+        {table && (
+          <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            <section className="cab flex flex-col gap-3 rounded-md p-4" aria-label="Deed">
+              {space ? (
+                space.price ? (
+                  <>
+                    <DeedCard i={selected} g={table} name={name} />
+                    {myTurn && table.owner[selected] === me.id && (
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {canBuild(table, selected) && (
+                          <button
+                            onClick={() => send(build(table, selected))}
+                            className="btn-arcade rounded-sm px-3 py-2 text-[0.5rem]"
+                          >
+                            Build {(table.houses[selected] ?? 0) === HOTEL - 1 ? "hotel" : "house"}{" "}
+                            · ${space.house}
+                          </button>
+                        )}
+                        {canSell(table, selected) && (
+                          <button
+                            onClick={() => send(sell(table, selected))}
+                            className="btn-ghost rounded-sm px-3 py-2 text-[0.5rem]"
+                          >
+                            Sell building · +${space.house! / 2}
+                          </button>
+                        )}
+                        {canMortgage(table, selected) && (
+                          <button
+                            onClick={() => send(mortgage(table, selected))}
+                            className="btn-ghost rounded-sm px-3 py-2 text-[0.5rem]"
+                          >
+                            Mortgage · +${mortgageValue(selected)}
+                          </button>
+                        )}
+                        {table.mortgaged[selected] && (
+                          <button
+                            onClick={() => send(lift(table, selected))}
+                            disabled={!canLift(table, selected)}
+                            className="btn-ghost rounded-sm px-3 py-2 text-[0.5rem] disabled:opacity-40"
+                          >
+                            Pay off · ${liftCost(selected)}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {table.owner[selected] && (
+                      <p className="text-center text-xs text-zinc-500">
+                        Rent right now: ${rentFor(table, selected, table.dice[0] + table.dice[1])}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-zinc-100">{space.name}</h3>
+                    <p className="text-sm text-zinc-400">
+                      {space.kind === "glitch" || space.kind === "bonus"
+                        ? "Draw the top card. It might pay, it might cost, it might move you — or get you out of jail later."
+                        : space.tax
+                          ? `Pay $${space.tax} to the bank.`
+                          : space.kind === "arrest"
+                            ? "Straight to jail. No salary."
+                            : space.kind === "go"
+                              ? "Collect $200 every time you pass."
+                              : "Nothing happens here."}
+                    </p>
+                  </>
+                )
+              ) : (
+                <p className="text-sm text-zinc-500">
+                  Tap a square on the board, or one of your deeds below, to see its title deed.
+                </p>
+              )}
+              {mine.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 border-t border-zinc-800 pt-3">
+                  {mine.map((i) => {
+                    const built = Math.min(HOTEL, Math.max(0, table.houses[i] ?? 0));
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => setPicked(i)}
+                        aria-pressed={selected === i}
+                        className={`flex w-[4.6rem] flex-col overflow-hidden rounded-sm bg-[#f7f3ff] text-left text-[0.42rem] leading-snug normal-case text-[#120b22] ${
+                          table.mortgaged[i] ? "opacity-45" : ""
+                        } ${selected === i ? "outline-2 outline-offset-2 outline-emerald-500" : ""}`}
+                      >
+                        <span className="h-2 w-full" style={{ background: bandOf(i) }} />
+                        <span className="px-1 pt-1">{BOARD[i].name}</span>
+                        <span className="px-1 pb-1 text-[#17803d]">
+                          {table.mortgaged[i]
+                            ? "mortgaged"
+                            : built === HOTEL
+                              ? "hotel"
+                              : built
+                                ? "⌂".repeat(built)
+                                : " "}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            <section className="cab flex flex-col gap-1 rounded-md p-4" aria-label="What happened">
+              <h3 className="pixel text-[0.5rem] text-zinc-500">What happened</h3>
+              <ol className="flex flex-col gap-1 text-sm text-zinc-300">
+                {table.log.length ? (
+                  table.log.map((line, n) => (
+                    <li
+                      key={`${table.throws}-${n}`}
+                      className={n === table.log.length - 1 ? "" : "text-zinc-500"}
+                    >
+                      {say(line)}
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-zinc-500">Nothing yet.</li>
+                )}
+              </ol>
+            </section>
+          </div>
+        )}
+
+        {upGone && isHost && table && !table.winner && (
           <button
-            onClick={() => send(withdraw(table))}
+            onClick={() => send(leave(table))}
             className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
           >
-            Withdraw
+            {auction
+              ? "The bidder left the room — drop them out"
+              : trade
+                ? "They left the room — call the trade off"
+                : "Whoever is up left the room — take them out"}
           </button>
-        </div>
-      )}
+        )}
 
-      {table && trade && trade.to === me.id && (
-        <div
-          role="dialog"
-          aria-label="Trade offer"
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4"
-        >
-          <div className="cab flex w-full max-w-md flex-col gap-4 rounded-md p-5">
-            <h3 className="pixel text-[0.6rem] text-[color:var(--neon-cyan)]">
-              {name(trade.from)} offers a trade
-            </h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              {(
-                [
-                  ["You get", trade.give, Math.max(0, trade.cash)],
-                  ["You give", trade.get, Math.max(0, -trade.cash)],
-                ] as const
-              ).map(([title, deeds, cash]) => (
-                <div key={title} className="flex flex-col gap-1">
-                  <span className="text-xs text-zinc-400">{title}</span>
-                  {deeds.map((i) => (
-                    <span key={i} className="flex items-center gap-1.5 text-zinc-200">
-                      <span
-                        aria-hidden
-                        className="h-2 w-2 rounded-[1px]"
-                        style={{ background: bandOf(i) }}
-                      />
-                      {BOARD[i].name}
-                      {table.mortgaged[i] && " (mortgaged)"}
-                    </span>
-                  ))}
-                  {cash > 0 && <span className="neon-green">${cash}</span>}
-                  {!deeds.length && !cash && <span className="text-zinc-500">nothing</span>}
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <button
-                autoFocus
-                onClick={() => send(answer(table, true))}
-                className="btn-arcade rounded-sm px-4 py-2"
-              >
-                Accept
-              </button>
-              <button
-                onClick={() => send(answer(table, false))}
-                className="btn-ghost btn-danger rounded-sm px-4 py-2"
-              >
-                Decline
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        {isHost && table && !table.winner && active(table).length > 1 && (
+          <button
+            onClick={() => send(finish(table))}
+            className="btn-ghost btn-danger rounded-sm px-3 py-2 text-[0.55rem]"
+          >
+            Call it — richest on paper wins
+          </button>
+        )}
 
-      {table && (
-        <div className="grid w-full gap-3 sm:grid-cols-2">
-          <section className="cab flex flex-col gap-3 rounded-md p-4" aria-label="Deed">
-            {space ? (
-              space.price ? (
-                <>
-                  <DeedCard i={selected} g={table} name={name} />
-                  {myTurn && table.owner[selected] === me.id && (
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {canBuild(table, selected) && (
-                        <button
-                          onClick={() => send(build(table, selected))}
-                          className="btn-arcade rounded-sm px-3 py-2 text-[0.5rem]"
-                        >
-                          Build {(table.houses[selected] ?? 0) === HOTEL - 1 ? "hotel" : "house"} ·
-                          ${space.house}
-                        </button>
-                      )}
-                      {canSell(table, selected) && (
-                        <button
-                          onClick={() => send(sell(table, selected))}
-                          className="btn-ghost rounded-sm px-3 py-2 text-[0.5rem]"
-                        >
-                          Sell building · +${space.house! / 2}
-                        </button>
-                      )}
-                      {canMortgage(table, selected) && (
-                        <button
-                          onClick={() => send(mortgage(table, selected))}
-                          className="btn-ghost rounded-sm px-3 py-2 text-[0.5rem]"
-                        >
-                          Mortgage · +${mortgageValue(selected)}
-                        </button>
-                      )}
-                      {table.mortgaged[selected] && (
-                        <button
-                          onClick={() => send(lift(table, selected))}
-                          disabled={!canLift(table, selected)}
-                          className="btn-ghost rounded-sm px-3 py-2 text-[0.5rem] disabled:opacity-40"
-                        >
-                          Pay off · ${liftCost(selected)}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {table.owner[selected] && (
-                    <p className="text-center text-xs text-zinc-500">
-                      Rent right now: ${rentFor(table, selected, table.dice[0] + table.dice[1])}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <>
-                  <h3 className="text-zinc-100">{space.name}</h3>
-                  <p className="text-sm text-zinc-400">
-                    {space.kind === "glitch" || space.kind === "bonus"
-                      ? "Draw the top card. It might pay, it might cost, it might move you — or get you out of jail later."
-                      : space.tax
-                        ? `Pay $${space.tax} to the bank.`
-                        : space.kind === "arrest"
-                          ? "Straight to jail. No salary."
-                          : space.kind === "go"
-                            ? "Collect $200 every time you pass."
-                            : "Nothing happens here."}
-                  </p>
-                </>
-              )
-            ) : (
-              <p className="text-sm text-zinc-500">
-                Tap a square on the board, or one of your deeds below, to see its title deed.
-              </p>
-            )}
-            {mine.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 border-t border-zinc-800 pt-3">
-                {mine.map((i) => {
-                  const built = Math.min(HOTEL, Math.max(0, table.houses[i] ?? 0));
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => setPicked(i)}
-                      aria-pressed={selected === i}
-                      className={`flex w-[4.6rem] flex-col overflow-hidden rounded-sm bg-[#f7f3ff] text-left text-[0.42rem] leading-snug normal-case text-[#120b22] ${
-                        table.mortgaged[i] ? "opacity-45" : ""
-                      } ${selected === i ? "outline-2 outline-offset-2 outline-emerald-500" : ""}`}
-                    >
-                      <span className="h-2 w-full" style={{ background: bandOf(i) }} />
-                      <span className="px-1 pt-1">{BOARD[i].name}</span>
-                      <span className="px-1 pb-1 text-[#17803d]">
-                        {table.mortgaged[i]
-                          ? "mortgaged"
-                          : built === HOTEL
-                            ? "hotel"
-                            : built
-                              ? "⌂".repeat(built)
-                              : " "}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className="cab flex flex-col gap-1 rounded-md p-4" aria-label="What happened">
-            <h3 className="pixel text-[0.5rem] text-zinc-500">What happened</h3>
-            <ol className="flex flex-col gap-1 text-sm text-zinc-300">
-              {table.log.length ? (
-                table.log.map((line, n) => (
-                  <li
-                    key={`${table.throws}-${n}`}
-                    className={n === table.log.length - 1 ? "" : "text-zinc-500"}
-                  >
-                    {say(line)}
-                  </li>
-                ))
-              ) : (
-                <li className="text-zinc-500">Nothing yet.</li>
-              )}
-            </ol>
-          </section>
-        </div>
-      )}
-
-      {upGone && isHost && table && !table.winner && (
-        <button
-          onClick={() => send(leave(table))}
-          className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
-        >
-          {auction
-            ? "The bidder left the room — drop them out"
-            : trade
-              ? "They left the room — call the trade off"
-              : "Whoever is up left the room — take them out"}
-        </button>
-      )}
-
-      {isHost && table && !table.winner && active(table).length > 1 && (
-        <button
-          onClick={() => send(finish(table))}
-          className="btn-ghost btn-danger rounded-sm px-3 py-2 text-[0.55rem]"
-        >
-          Call it — richest on paper wins
-        </button>
-      )}
-
-      {isHost && (!table || table.winner) && (
-        <button
-          onClick={start}
-          disabled={players.length < 2}
-          className="btn-arcade rounded-sm px-4 py-2 disabled:opacity-40"
-        >
-          {table ? "New game" : "Start"}
-        </button>
-      )}
-      {table && !order.includes(me.id) && (
-        <p className="text-xs text-zinc-500">You are watching this game. Join the next one.</p>
-      )}
+        {isHost && (!table || table.winner) && (
+          <button
+            onClick={start}
+            disabled={players.length < 2}
+            className="btn-arcade rounded-sm px-4 py-2 disabled:opacity-40"
+          >
+            {table ? "New game" : "Start"}
+          </button>
+        )}
+        {table && !order.includes(me.id) && (
+          <p className="text-xs text-zinc-500">You are watching this game. Join the next one.</p>
+        )}
+      </aside>
     </div>
   );
 }

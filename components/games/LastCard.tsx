@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   COLOURS,
   DARK,
@@ -221,49 +221,156 @@ function Back({ className = "", style }: { className?: string; style?: React.CSS
   );
 }
 
-type Seat = { id: string; angle: number };
+const AVATAR_COLOURS = [
+  "#ff2d95",
+  "#22d3ee",
+  "#ffc83d",
+  "#39ff88",
+  "#a78bfa",
+  "#fb923c",
+  "#ff2e63",
+  "#5b7bff",
+];
 
-// Everyone sits round the table in play order, you at the bottom, play running clockwise.
-function seats(order: string[], me: string): Seat[] {
-  const base = Math.max(0, order.indexOf(me));
-  return order.map((_, k) => ({
-    id: order[(base + k) % order.length],
-    angle: 90 + (k * 360) / order.length,
-  }));
+// A little arcade critter per seat, so everyone reads at a glance across the table.
+function Avatar({ seat, className = "" }: { seat: number; className?: string }) {
+  const colour = AVATAR_COLOURS[seat % AVATAR_COLOURS.length];
+  const look = seat % 2 ? 1 : -1;
+  return (
+    <svg viewBox="0 0 40 40" aria-hidden className={className}>
+      <rect width="40" height="40" rx="6" fill="#120b22" />
+      {seat % 3 === 0 && (
+        <path
+          d="M9 15 L12 5 L18 12 M31 15 L28 5 L22 12"
+          fill={colour}
+          stroke={colour}
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+      )}
+      {seat % 3 === 1 && (
+        <>
+          <path d="M20 10 V4" stroke={colour} strokeWidth="2.5" strokeLinecap="round" />
+          <circle cx="20" cy="4" r="2.6" fill={colour} />
+        </>
+      )}
+      {seat % 3 === 2 && (
+        <path
+          d="M9 17 q-5 -11 6 -9 M31 17 q5 -11 -6 -9"
+          fill="none"
+          stroke={colour}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
+      )}
+      <rect x="7" y="10" width="26" height="26" rx="11" fill={colour} />
+      <circle cx="15" cy="21" r="4.3" fill="#f7f3ff" />
+      <circle cx="25" cy="21" r="4.3" fill="#f7f3ff" />
+      <circle cx={15 + look} cy="21.5" r="2" fill="#06030d" />
+      <circle cx={25 + look} cy="21.5" r="2" fill="#06030d" />
+      <path
+        d={seat % 2 ? "M15 29 q5 4 10 0" : "M16 30 h8"}
+        stroke="#06030d"
+        strokeWidth="2"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
+  );
 }
 
-const at = (angle: number, rx: number, ry: number) => {
-  const a = (angle * Math.PI) / 180;
-  return { x: 50 + Math.cos(a) * rx, y: 50 + Math.sin(a) * ry };
-};
-
-function Fan({ cards, show }: { cards: number[]; show: (card: number) => React.ReactNode }) {
-  const shown = cards.slice(0, 14);
-  const m = shown.length;
+// Name banner over the avatar, cards left in a badge beside it.
+function Tag({
+  label,
+  seat,
+  count,
+  score,
+  hot,
+  won,
+  compact = false,
+}: {
+  label: string;
+  seat: number;
+  count: number;
+  score: number;
+  hot: boolean;
+  won: boolean;
+  compact?: boolean;
+}) {
   return (
-    <div className="relative h-[9.4em]" style={{ width: `${6.2 + Math.max(0, m - 1) * 1.5}em` }}>
-      {shown.map((card, i) => {
-        const off = i - (m - 1) / 2;
-        return (
-          <span
-            key={card}
-            className="absolute bottom-0 left-1/2 origin-bottom"
-            style={{
-              transform: `translateX(calc(-50% + ${off * 1.5}em)) rotate(${off * 4}deg) translateY(${Math.abs(off) * 0.12}em)`,
-            }}
-          >
-            {show(card)}
+    <div className={`flex items-end ${compact ? "gap-0.5" : "gap-1.5"} ${won ? "flash-win" : ""}`}>
+      <div className={`relative flex flex-col ${compact ? "items-center" : "items-start"}`}>
+        <span
+          className={`seat-banner ${hot ? "seat-banner-hot" : ""} ${
+            compact ? "max-w-[4.2rem] text-[0.36rem]" : ""
+          }`}
+        >
+          <span className="truncate">{label}</span>
+          <span className="neon-green shrink-0">{score}</span>
+        </span>
+        <Avatar
+          seat={seat}
+          className={`rounded-md border-2 ${compact ? "h-8 w-8" : "h-10 w-10 sm:h-12 sm:w-12"} ${
+            hot
+              ? "border-emerald-400 shadow-[0_0_14px_var(--color-emerald-500)]"
+              : "border-zinc-200/70"
+          }`}
+        />
+        {compact && (
+          <span className="count-badge pixel absolute -right-3 -bottom-1 h-5 min-w-5 text-[0.45rem]">
+            {count}
           </span>
-        );
-      })}
+        )}
+      </div>
+      {!compact && <span className="count-badge pixel">{count}</span>}
+      {count === 1 && !compact && (
+        <span className="pixel blink self-center text-[0.45rem] text-[color:var(--neon-amber)]">
+          Last card!
+        </span>
+      )}
     </div>
   );
 }
+
+type Seat = { id: string; seat: number; angle: number };
+
+// Everyone else spreads across the far side in play order, starting on your left, so play
+// runs round the table clockwise.
+function opponents(order: string[], me: string): Seat[] {
+  const base = order.indexOf(me);
+  const rest = base < 0 ? order : [...order.slice(base + 1), ...order.slice(0, base)];
+  const k = rest.length;
+  return rest.map((id, i) => ({
+    id,
+    seat: order.indexOf(id),
+    angle: k === 1 ? 270 : 195 + (i * 150) / (k - 1),
+  }));
+}
+
+const spot = (angle: number) => {
+  const a = (angle * Math.PI) / 180;
+  return { x: 50 + 41 * Math.cos(a), y: 40 + 27 * Math.sin(a) };
+};
+
+const onResize = (cb: () => void) => {
+  window.addEventListener("resize", cb);
+  return () => window.removeEventListener("resize", cb);
+};
+const usePortrait = () =>
+  useSyncExternalStore(
+    onResize,
+    () => innerHeight > innerWidth,
+    () => false
+  );
+
+const TILT = 55;
+const FORESHORTEN = Math.cos((TILT * Math.PI) / 180);
 
 export default function LastCard({ code, players, me }: GameProps) {
   const [table, send] = useTable<Game>(`lastcard:${code}`, me.id);
   const [picking, setPicking] = useState(-1);
   const [mode, setMode] = useState<Mode | null>(null);
+  const portrait = usePortrait();
 
   const isHost = players[0]?.id === me.id;
   const name = (id?: string) => players.find((p) => p.id === id)?.name ?? "someone";
@@ -337,51 +444,52 @@ export default function LastCard({ code, players, me }: GameProps) {
 
   if (!table)
     return (
-      <div className="flex w-full max-w-2xl flex-col items-center gap-5 text-center">
-        <p className="text-sm text-zinc-400">
-          Match the colour or the face. Skips, reverses, draw cards and wilds keep it nasty. First
-          to empty their hand wins the round. The Flip deck has a dark side: play a Flip and every
-          card on the table turns over.
-        </p>
-        <div className="flex gap-2 text-[9px] sm:text-[11px]" aria-hidden>
-          {[
-            { colour: "red", face: "7" },
-            { colour: "yellow", face: "skip" },
-            { colour: "wild", face: "+4" },
-            { colour: "teal", face: "flip" },
-            { colour: "purple", face: "skip-all" },
-          ].map((c, i) => (
-            <span
-              key={i}
-              style={{
-                transform: `rotate(${(i - 2) * 8}deg) translateY(${Math.abs(i - 2) * 8}px)`,
-              }}
+      <div className="uno-stage absolute inset-0 flex items-center justify-center overflow-y-auto p-4">
+        <div className="menu-in cab flex w-full max-w-xl flex-col items-center gap-5 rounded-md p-5 text-center">
+          <h2 className="pixel neon-cyan text-sm">Last Card</h2>
+          <div className="flex gap-2 text-[length:clamp(7px,2.2vw,11px)]" aria-hidden>
+            {[
+              { colour: "red", face: "7" },
+              { colour: "yellow", face: "skip" },
+              { colour: "wild", face: "+4" },
+              { colour: "teal", face: "flip" },
+              { colour: "purple", face: "skip-all" },
+            ].map((c, i) => (
+              <span
+                key={i}
+                style={{
+                  transform: `rotate(${(i - 2) * 8}deg) translateY(${Math.abs(i - 2) * 8}px)`,
+                }}
+              >
+                <Face c={c as Card} dark={(DARK as readonly string[]).includes(c.colour)} />
+              </span>
+            ))}
+          </div>
+          <p className="text-base text-zinc-300">
+            Match the colour or the face. Skips, reverses, draw cards and wilds keep it nasty. First
+            to empty their hand wins the round. The Flip deck has a dark side: play a Flip and every
+            card on the table turns over.
+          </p>
+          {modePicker}
+          {isHost ? (
+            <button
+              onClick={start}
+              disabled={players.length < 2}
+              className="btn-arcade play-pulse rounded-sm px-6 py-3 disabled:opacity-40"
             >
-              <Face c={c as Card} dark={(DARK as readonly string[]).includes(c.colour)} />
+              Deal
+            </button>
+          ) : (
+            <span className="blink text-base text-zinc-400">
+              Waiting for {name(players[0]?.id)} to deal…
             </span>
-          ))}
+          )}
         </div>
-        {modePicker}
-        {isHost ? (
-          <button
-            onClick={start}
-            disabled={players.length < 2}
-            className="btn-arcade rounded-sm px-4 py-2 disabled:opacity-40"
-          >
-            Deal
-          </button>
-        ) : (
-          <span className="blink text-sm text-zinc-500">
-            Waiting for {name(players[0]?.id)} to deal…
-          </span>
-        )}
       </div>
     );
 
   const flip = table.mode === "flip";
   const dark = !!table.dark;
-  const around = seats(table.order, me.id);
-  const seatOf = (id: string) => around.find((s) => s.id === id) ?? around[0];
   const pile = table.pile.slice(-5);
   const pending = table.pending;
   const offender = pending ? faceOf(table, pending.card) : null;
@@ -429,217 +537,272 @@ export default function LastCard({ code, players, me }: GameProps) {
   const deckTop = table.deck[0];
   const pickPalette = picking >= 0 ? palette(flipsTo(picking)) : [];
 
-  return (
-    <div className="flex w-full max-w-3xl flex-col items-center gap-4">
-      <div className="w-full [perspective:1400px]">
-        <div
-          key={dark ? "dark" : "light"}
-          className={`felt relative mx-auto aspect-[4/5] w-full rounded-[44%/36%] sm:aspect-[16/10] ${
-            dark ? "felt-dark" : ""
-          } ${flip && table.pile.length > 1 ? "table-flip" : ""}`}
-        >
-          <svg
-            aria-hidden
-            viewBox="0 0 100 100"
-            className={`absolute top-1/2 left-1/2 h-[58cqmin] w-[58cqmin] -translate-x-1/2 -translate-y-1/2 opacity-60 ${
-              table.dir === 1 ? "spin-slow" : "spin-slow-back"
-            }`}
-          >
-            <circle
-              cx="50"
-              cy="50"
-              r="44"
-              fill="none"
-              stroke={HUE[table.colour]}
-              strokeWidth="1.2"
-              strokeDasharray="22 12"
-            />
-            {[0, 120, 240].map((r) => (
-              <path
-                key={r}
-                d={table.dir === 1 ? "M50 2l5 4-5 4" : "M50 2l-5 4 5 4"}
-                transform={`rotate(${r} 50 50)`}
-                fill="none"
-                stroke={HUE[table.colour]}
-                strokeWidth="1.6"
-              />
-            ))}
-          </svg>
+  const rivals = opponents(table.order, me.id);
+  // A phone held upright can't fit four or more round the arc, so they line up across the top.
+  const row = portrait && rivals.length >= 4;
+  const seatAt = (i: number) =>
+    row ? { x: ((i + 0.5) / rivals.length) * 100, y: 13 } : spot(rivals[i]?.angle ?? 270);
+  const seating = table.order.includes(me.id);
+  const from = (id: string) =>
+    id === me.id && seating ? { x: 50, y: 115 } : seatAt(rivals.findIndex((r) => r.id === id));
+  const showBack = (card: number) => {
+    const other = backOf(table, card);
+    return other ? <Face c={other} dark={!dark} /> : <Back />;
+  };
+  const canDraw = myTurn && table.drawn < 0 && !pending;
 
-          {around.slice(table.order.includes(me.id) ? 1 : 0).map(({ id, angle }) => {
-            const fan = at(angle, 31, 27);
-            const tag = at(angle, 43, 43);
-            const count = table.hands[id].length;
+  return (
+    <div
+      key={dark ? "dark" : "light"}
+      className={`uno-stage absolute inset-0 overflow-hidden ${dark ? "uno-stage-dark" : ""} ${
+        flip && table.pile.length > 1 ? "stage-flash" : ""
+      }`}
+    >
+      {flip && (
+        <span className="pixel absolute top-3 left-3 z-10 rounded-sm bg-[#06030d]/70 px-2 py-1 text-[0.45rem] text-zinc-300">
+          {dark ? "Dark side" : "Light side"}
+        </span>
+      )}
+
+      <div
+        className="absolute top-[50%] left-1/2 h-[min(60vmin,540px)] w-[min(60vmin,540px)] -translate-x-1/2 -translate-y-1/2"
+        style={{ transform: `perspective(1000px) rotateX(${TILT}deg)` }}
+      >
+        <div className="absolute inset-[4%] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.1),rgba(255,255,255,0.03)_55%,transparent_70%)]" />
+        <div
+          aria-hidden
+          className="absolute inset-[22%] rounded-full blur-2xl"
+          style={{ background: HUE[table.colour], opacity: 0.35 }}
+        />
+        <svg
+          aria-hidden
+          viewBox="0 0 100 100"
+          className={`absolute inset-0 h-full w-full ${table.dir === 1 ? "spin-slow" : "spin-slow-back"}`}
+          style={{ filter: `drop-shadow(0 0 6px ${HUE[table.colour]})` }}
+        >
+          <g transform={table.dir === 1 ? undefined : "translate(100 0) scale(-1 1)"}>
+            {[0, 180].map((r) => (
+              <g key={r} transform={`rotate(${r} 50 50)`}>
+                <path
+                  d="M 12.4 36.3 A 40 40 0 0 1 76 19.6"
+                  fill="none"
+                  stroke={HUE[table.colour]}
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  opacity="0.85"
+                />
+                <path d="M 70 13 L 82 22 L 70 27.5 Z" fill={HUE[table.colour]} opacity="0.85" />
+              </g>
+            ))}
+          </g>
+        </svg>
+
+        <button
+          onClick={() => canDraw && send(draw(table))}
+          disabled={!canDraw}
+          aria-label={`Draw a card. ${table.deck.length} left.`}
+          className="absolute top-[30%] left-[16%] text-[length:inherit] normal-case disabled:cursor-default"
+          style={{ fontSize: "clamp(6px, 1.5vmin, 12px)" }}
+        >
+          {[4, 3, 2, 1].map((n) => (
+            <span
+              key={n}
+              aria-hidden
+              className="absolute inset-0"
+              style={{ transform: `translate(${n * 0.22}em, ${n * 0.3}em)` }}
+            >
+              <Back className="opacity-80" />
+            </span>
+          ))}
+          {flip && deckTop !== undefined ? (
+            <Face c={backOf(table, deckTop)!} dark={!dark} className="relative" />
+          ) : (
+            <Back className="relative" />
+          )}
+        </button>
+
+        <div
+          className="absolute top-1/2 left-1/2 h-[9.4em] w-[6.2em] -translate-x-1/2 -translate-y-1/2"
+          style={{ fontSize: "clamp(7px, 1.8vmin, 14px)" }}
+        >
+          {pile.map((card, i) => {
+            const newest = i === pile.length - 1;
+            const thrown = newest && last?.act === "play" ? from(last.by) : null;
             return (
-              <div key={id}>
-                <div
-                  className="absolute -translate-x-1/2 -translate-y-1/2 text-[length:clamp(3.2px,0.75cqw,5px)]"
-                  style={{ left: `${fan.x}%`, top: `${fan.y}%` }}
-                >
-                  <div style={{ transform: `rotate(${angle - 90}deg)` }}>
-                    <Fan
-                      cards={table.hands[id]}
-                      show={(card) => {
-                        const other = backOf(table, card);
-                        return other ? <Face c={other} dark={!dark} /> : <Back />;
-                      }}
-                    />
-                  </div>
-                </div>
-                <div
-                  className={`cab absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-md px-2 py-1 text-xs whitespace-nowrap ${
-                    up === id ? "cab-hot" : ""
-                  } ${table.winner === id ? "flash-win border-emerald-500" : ""}`}
-                  style={{ left: `${tag.x}%`, top: `${tag.y}%` }}
-                >
-                  <span className="max-w-24 truncate text-zinc-200">{name(id)}</span>
-                  <span className="text-zinc-400">
-                    {count} {count === 1 ? "card" : "cards"} ·{" "}
-                    <span className="neon-green">{table.scores[id] ?? 0}</span>
-                  </span>
-                  {count === 1 && !table.winner && (
-                    <span className="pixel blink text-[0.4rem] text-[color:var(--neon-amber)]">
-                      Last card!
-                    </span>
-                  )}
-                </div>
-              </div>
+              <Face
+                key={`${card}-${table.pile.length - pile.length + i}`}
+                c={faceOf(table, card)}
+                dark={dark}
+                lift
+                className={`absolute inset-0 ${thrown ? "card-fly" : ""}`}
+                style={
+                  {
+                    "--rot": `${((card * 37) % 30) - 15}deg`,
+                    "--fx": thrown ? `${thrown.x - 50}cqw` : "0",
+                    "--fy": thrown ? `${(thrown.y - 50) / FORESHORTEN}cqh` : "0",
+                    transform: "rotate(var(--rot))",
+                  } as React.CSSProperties
+                }
+              />
             );
           })}
-
-          <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-[6cqw] text-[length:clamp(6px,1.25cqw,11px)]">
-            <button
-              onClick={() => myTurn && send(draw(table))}
-              disabled={!myTurn || table.drawn >= 0 || !!pending}
-              aria-label={`Draw a card. ${table.deck.length} left.`}
-              className="relative text-[length:inherit] normal-case disabled:cursor-default"
-            >
-              {[3, 2, 1].map((n) => (
-                <span
-                  key={n}
-                  aria-hidden
-                  className="absolute inset-0"
-                  style={{ transform: `translate(${n * 0.25}em, ${n * 0.25}em)` }}
-                >
-                  <Back className="opacity-80" />
-                </span>
-              ))}
-              {flip && deckTop !== undefined ? (
-                <Face c={backOf(table, deckTop)!} dark={!dark} className="relative" />
-              ) : (
-                <Back className="relative" />
-              )}
-              {myTurn && table.drawn < 0 && !pending && (
-                <span className="pixel neon-green blink absolute -bottom-[2.2em] left-1/2 -translate-x-1/2 text-[0.75em] whitespace-nowrap">
-                  Draw
-                </span>
-              )}
-            </button>
-
-            <div
-              className="relative h-[9.4em] w-[6.2em] rounded-[0.8em]"
-              style={{
-                boxShadow: `0 0 0 0.35em #06030d, 0 0 0 0.6em ${HUE[table.colour]}, 0 0 3em ${HUE[table.colour]}`,
-              }}
-            >
-              {pile.map((card, i) => {
-                const newest = i === pile.length - 1;
-                const from =
-                  newest && last?.act === "play"
-                    ? last.by === me.id
-                      ? { x: 50, y: 115 }
-                      : at(seatOf(last.by).angle, 31, 27)
-                    : null;
-                return (
-                  <Face
-                    key={`${card}-${table.pile.length - pile.length + i}`}
-                    c={faceOf(table, card)}
-                    dark={dark}
-                    className={`absolute inset-0 ${from ? "card-fly" : ""}`}
-                    style={
-                      {
-                        "--rot": `${((card * 37) % 24) - 12}deg`,
-                        "--fx": from ? `${from.x - 50}cqw` : "0",
-                        "--fy": from ? `${from.y - 50}cqh` : "0",
-                        transform: "rotate(var(--rot))",
-                      } as React.CSSProperties
-                    }
-                  />
-                );
-              })}
-            </div>
-          </div>
-
-          {flying > 0 &&
-            Array.from({ length: flying }, (_, i) => {
-              const to = drawer === me.id ? { x: 50, y: 115 } : at(seatOf(drawer).angle, 31, 27);
-              return (
-                <span
-                  key={`${moveKey}-${i}`}
-                  aria-hidden
-                  className="card-deal absolute top-1/2 left-[42%] -translate-x-1/2 -translate-y-1/2 text-[length:clamp(6px,1.25cqw,11px)]"
-                  style={
-                    {
-                      "--fx": `${to.x - 42}cqw`,
-                      "--fy": `${to.y - 50}cqh`,
-                      "--delay": `${i * 90}ms`,
-                    } as React.CSSProperties
-                  }
-                >
-                  {flip && deckTop !== undefined ? (
-                    <Face c={backOf(table, deckTop)!} dark={!dark} />
-                  ) : (
-                    <Back />
-                  )}
-                </span>
-              );
-            })}
-
-          {table.order.includes(me.id) && (
-            <div
-              className={`cab absolute bottom-[3%] left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-md px-2 py-1 text-xs whitespace-nowrap ${
-                myTurn ? "cab-hot" : ""
-              } ${table.winner === me.id ? "flash-win border-emerald-500" : ""}`}
-            >
-              <span className="text-zinc-200">{name(me.id)} (you)</span>
-              <span className="neon-green">{table.scores[me.id] ?? 0}</span>
-            </div>
-          )}
-
-          {flip && (
-            <span className="pixel absolute top-[3%] left-1/2 -translate-x-1/2 text-[0.45rem] text-zinc-300">
-              {dark ? "Dark side" : "Light side"}
-            </span>
-          )}
         </div>
       </div>
 
-      <p role="status" className="min-h-6 text-center text-sm text-zinc-300">
-        {table.winner
-          ? ""
-          : pending
-            ? myTurn
-              ? `Wild draw on you. Take ${victimDraws}, or challenge.`
-              : `${name(up)} is deciding whether to challenge…`
-            : myTurn
-              ? table.drawn >= 0
-                ? "It fits. Play it, or keep it and pass."
-                : "Your turn — play a card or draw."
-              : `${name(up)} is thinking…`}
-      </p>
-      {lastLine && <p className="-mt-3 text-center text-xs text-zinc-500">{lastLine}</p>}
+      {rivals.map(({ id, seat, angle }, i) => {
+        const at = seatAt(i);
+        const turn = row ? 0 : -Math.cos((angle * Math.PI) / 180) * 52;
+        const cards = table.hands[id];
+        const shown = cards.slice(0, 12);
+        return (
+          <div
+            key={id}
+            className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5"
+            style={{
+              left: row ? `${at.x}%` : `clamp(4.5rem, ${at.x}%, calc(100% - 4.5rem))`,
+              top: `${at.y}%`,
+            }}
+          >
+            <Tag
+              label={name(id)}
+              seat={seat}
+              count={cards.length}
+              score={table.scores[id] ?? 0}
+              hot={up === id}
+              won={table.winner === id}
+              compact={row}
+            />
+            <div
+              className={`flex ${row ? "text-[3px]" : "text-[length:clamp(3.6px,1.15vmin,8px)]"}`}
+              style={{ transform: `perspective(600px) rotateY(${turn}deg)` }}
+              aria-hidden
+            >
+              {shown.map((card, i) => (
+                <span key={card} style={{ marginLeft: i ? "-4.3em" : 0 }}>
+                  {showBack(card)}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {flying > 0 &&
+        Array.from({ length: flying }, (_, i) => {
+          const to = from(drawer);
+          return (
+            <span
+              key={`${moveKey}-${i}`}
+              aria-hidden
+              className="card-deal absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[length:clamp(6px,1.5vmin,12px)]"
+              style={
+                {
+                  "--fx": `${to.x - 50}cqw`,
+                  "--fy": `${to.y - 50}cqh`,
+                  "--delay": `${i * 90}ms`,
+                } as React.CSSProperties
+              }
+            >
+              {flip && deckTop !== undefined ? (
+                <Face c={backOf(table, deckTop)!} dark={!dark} />
+              ) : (
+                <Back />
+              )}
+            </span>
+          );
+        })}
 
       {table.winner && (
-        <p className="flash-win neon-green pixel text-center text-[0.7rem]">
-          {name(table.winner)} is out of cards!
-        </p>
+        <div className="menu-in absolute top-[50%] left-1/2 z-20 flex w-[min(90%,26rem)] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 rounded-md border-2 border-emerald-500 bg-[#06030d]/90 p-5 text-center shadow-[0_0_40px_rgba(57,255,136,0.35)]">
+          <span className="flash-win neon-green pixel text-[0.7rem] leading-relaxed">
+            {name(table.winner)} is out of cards!
+          </span>
+          <span className="text-base text-zinc-300">
+            {name(table.winner)} has {table.scores[table.winner] ?? 0} points.
+          </span>
+          {isHost ? (
+            <>
+              {modePicker}
+              <button
+                onClick={start}
+                disabled={players.length < 2}
+                className="btn-arcade play-pulse rounded-sm px-5 py-3 disabled:opacity-40"
+              >
+                Deal next round
+              </button>
+            </>
+          ) : (
+            <span className="blink text-sm text-zinc-500">
+              Waiting for {name(players[0]?.id)} to deal…
+            </span>
+          )}
+        </div>
       )}
 
-      {hand && (
-        <div className="flex w-full flex-col items-center gap-3">
-          <div className="flex w-full justify-center-safe overflow-x-auto px-4 pt-7 pb-2">
-            <div className="flex pl-7 text-[11px] sm:pl-6 sm:text-[13px]">
-              {hand.map((card) => {
+      <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <div className="flex w-full max-w-6xl items-end gap-2 px-3">
+          {seating ? (
+            <Tag
+              label={name(me.id)}
+              seat={table.order.indexOf(me.id)}
+              count={table.hands[me.id].length}
+              score={table.scores[me.id] ?? 0}
+              hot={myTurn}
+              won={table.winner === me.id}
+            />
+          ) : (
+            <span className="text-sm text-zinc-400">
+              You are watching. You&apos;ll be dealt in next round.
+            </span>
+          )}
+          <div className="flex min-w-0 flex-1 flex-col items-center text-center">
+            <p
+              role="status"
+              className={`text-sm sm:text-base ${myTurn ? "neon-green" : "text-zinc-200"}`}
+            >
+              {table.winner
+                ? ""
+                : pending
+                  ? myTurn
+                    ? `Wild draw on you. Take ${victimDraws}, or challenge.`
+                    : `${name(up)} is deciding whether to challenge…`
+                  : myTurn
+                    ? table.drawn >= 0
+                      ? "It fits. Play it, or keep it and pass."
+                      : "Your turn — play a card or draw."
+                    : `${name(up)} is thinking…`}
+            </p>
+            {lastLine && (
+              <p className="line-clamp-2 text-xs text-zinc-400 sm:text-sm">{lastLine}</p>
+            )}
+          </div>
+          <div className="flex shrink-0 flex-col gap-1.5">
+            {canDraw && (
+              <button
+                onClick={() => send(draw(table))}
+                className="btn-arcade rounded-sm px-3 py-2 text-[0.55rem]"
+              >
+                Draw
+              </button>
+            )}
+            {myTurn && table.drawn >= 0 && (
+              <button
+                onClick={() => send(pass(table))}
+                className="btn-ghost rounded-sm px-3 py-2 text-[0.5rem]"
+              >
+                Keep, pass
+              </button>
+            )}
+          </div>
+        </div>
+
+        {hand && (
+          <div className="w-full max-w-6xl overflow-x-auto px-3 pt-5 [container-type:inline-size]">
+            <div
+              className="flex justify-center-safe text-[length:clamp(8px,1.5vmin+3px,15px)]"
+              style={{ "--n": hand.length } as React.CSSProperties}
+            >
+              {hand.map((card, i) => {
                 const ok = myTurn && playable(table, card);
                 const c = faceOf(table, card);
                 return (
@@ -648,13 +811,18 @@ export default function LastCard({ code, players, me }: GameProps) {
                     onClick={() => tryPlay(card)}
                     disabled={!ok}
                     aria-label={`Play ${describe(c)}`}
-                    className={`-ml-7 text-[length:inherit] normal-case transition-transform duration-150 sm:-ml-6 ${
+                    className={`shrink-0 text-[length:inherit] normal-case transition-transform duration-150 ${
                       ok
                         ? "-translate-y-3 hover:-translate-y-6 focus-visible:-translate-y-6"
                         : myTurn
                           ? "brightness-[0.6]"
                           : ""
                     }`}
+                    style={{
+                      marginLeft: i
+                        ? "clamp(-4.6em, calc((100cqw - var(--n) * 6.2em) / (var(--n) - 1)), -1.4em)"
+                        : 0,
+                    }}
                   >
                     <Face c={c} dark={dark} lift={ok} />
                   </button>
@@ -662,22 +830,17 @@ export default function LastCard({ code, players, me }: GameProps) {
               })}
             </div>
           </div>
-          {myTurn && table.drawn >= 0 && (
-            <button
-              onClick={() => send(pass(table))}
-              className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
-            >
-              Keep it, pass
-            </button>
-          )}
-        </div>
-      )}
-      {!hand && (
-        <p className="text-xs text-zinc-500">
-          You are watching this round. You will be dealt in next time.
-        </p>
-      )}
+        )}
+      </div>
 
+      {upGone && isHost && !table.winner && (
+        <button
+          onClick={() => send(leave(table))}
+          className="btn-ghost absolute top-3 right-3 z-10 rounded-sm px-3 py-2 text-[0.5rem]"
+        >
+          Skip the player who left
+        </button>
+      )}
       {pending && myTurn && offender && (
         <div
           role="dialog"
@@ -744,28 +907,6 @@ export default function LastCard({ code, players, me }: GameProps) {
               ))}
             </div>
           </div>
-        </div>
-      )}
-
-      {upGone && isHost && !table.winner && (
-        <button
-          onClick={() => send(leave(table))}
-          className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
-        >
-          Whoever is up left the room — skip them
-        </button>
-      )}
-
-      {isHost && table.winner && (
-        <div className="flex flex-col items-center gap-3">
-          {modePicker}
-          <button
-            onClick={start}
-            disabled={players.length < 2}
-            className="btn-arcade rounded-sm px-4 py-2 disabled:opacity-40"
-          >
-            Deal next round
-          </button>
         </div>
       )}
     </div>

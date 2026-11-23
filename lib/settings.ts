@@ -11,6 +11,7 @@ export type Settings = {
   bloom: boolean;
   crt: boolean;
   motion: boolean;
+  fullscreen: boolean;
   orbit: number;
 };
 
@@ -21,6 +22,7 @@ export const DEFAULTS: Settings = {
   bloom: true,
   crt: true,
   motion: true,
+  fullscreen: true,
   orbit: 1,
 };
 
@@ -38,6 +40,7 @@ function clean(raw: Partial<Record<keyof Settings, unknown>>, base: Settings): S
     bloom: typeof raw.bloom === "boolean" ? raw.bloom : base.bloom,
     crt: typeof raw.crt === "boolean" ? raw.crt : base.crt,
     motion: typeof raw.motion === "boolean" ? raw.motion : base.motion,
+    fullscreen: typeof raw.fullscreen === "boolean" ? raw.fullscreen : base.fullscreen,
     orbit: unit(raw.orbit, base.orbit, 0.3, 2),
   };
 }

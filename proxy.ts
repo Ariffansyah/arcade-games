@@ -7,7 +7,8 @@ export function proxy(request: NextRequest) {
 
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${scriptExtra}`,
+    // Topple's physics engine is WebAssembly; this lets it compile without allowing JS eval.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${scriptExtra}`,
 
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",

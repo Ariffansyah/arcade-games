@@ -6,6 +6,7 @@ import { GAMES, type GameInfo } from "@/lib/games";
 import { HOWTO } from "@/lib/howto";
 import { useRoom, type GameProps, type Player } from "@/lib/useRoom";
 import { music, sfx } from "@/lib/sfx";
+import { settings } from "@/lib/settings";
 import GameSelect from "@/components/GameSelect";
 import MenuScene from "@/components/MenuScene";
 import SettingsPanel from "@/components/Settings";
@@ -59,6 +60,25 @@ const CABINETS: Record<string, React.ComponentType<GameProps>> = {
 const SLOT_COLOURS = ["#ff2d95", "#22d3ee", "#ffc83d", "#39ff88", "#a78bfa", "#fb923c"];
 
 const noop = () => () => {};
+
+// Browser fullscreen. iPhone Safari has no element fullscreen, so these quietly do nothing there.
+const enterFullscreen = () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+};
+const toggleFullscreen = () => {
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  else enterFullscreen();
+};
+const onFullscreen = (cb: () => void) => {
+  document.addEventListener("fullscreenchange", cb);
+  return () => document.removeEventListener("fullscreenchange", cb);
+};
+const useFullscreen = () =>
+  useSyncExternalStore(
+    onFullscreen,
+    () => !!document.fullscreenElement,
+    () => false
+  );
 
 const useHydrated = () =>
   useSyncExternalStore(
@@ -273,6 +293,9 @@ export default function Lobby({ code }: { code: string }) {
   const hydrated = useHydrated();
   const [options, setOptions] = useState(false);
   const [paused, setPaused] = useState(false);
+  const fullscreen = useFullscreen();
+  // Fullscreen needs a click or tap, so a game someone else started goes fullscreen on our first.
+  const asked = useRef<string | null>(null);
   const seat = players.findIndex((p) => p.id === me.id) + 1;
 
   const current = GAMES.find((g) => g.id === game);
@@ -311,8 +334,15 @@ export default function Lobby({ code }: { code: string }) {
 
   if (current && Game) {
     return (
-      <main className="flex min-h-screen flex-col items-center gap-5 p-3 pb-[max(1rem,env(safe-area-inset-bottom))] text-zinc-100 sm:p-5">
-        <div className="hud flex w-full max-w-4xl items-center justify-between gap-3 rounded-md px-2 py-1.5">
+      <main
+        className="fixed inset-0 flex flex-col text-zinc-100"
+        onPointerDownCapture={() => {
+          if (asked.current === current.id) return;
+          asked.current = current.id;
+          if (settings().fullscreen) enterFullscreen();
+        }}
+      >
+        <div className="hud relative z-20 flex min-h-11 shrink-0 items-center justify-between gap-2 border-x-0 border-t-0 px-1.5 pt-[env(safe-area-inset-top)] sm:px-3">
           <button
             onClick={() => {
               sfx.select();
@@ -330,21 +360,55 @@ export default function Lobby({ code }: { code: string }) {
           <span className="pixel neon-cyan truncate text-[0.6rem] sm:text-[0.7rem]">
             {current.name}
           </span>
-          <span className="mr-9 flex items-center gap-2 text-sm text-zinc-400">
-            <span
-              aria-hidden
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ background: SLOT_COLOURS[Math.max(0, seat - 1) % SLOT_COLOURS.length] }}
-            />
-            <span className="hidden sm:inline">{me.name} ·</span> P{seat || "?"}
+          <span className="flex items-center gap-1 text-sm text-zinc-400 sm:gap-3">
+            <span className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ background: SLOT_COLOURS[Math.max(0, seat - 1) % SLOT_COLOURS.length] }}
+              />
+              <span className="hidden sm:inline">{me.name} ·</span> P{seat || "?"}
+            </span>
+            <button
+              onClick={() => {
+                sfx.select();
+                toggleFullscreen();
+              }}
+              aria-label={fullscreen ? "Leave fullscreen" : "Fullscreen"}
+              title={fullscreen ? "Leave fullscreen" : "Fullscreen"}
+              className="rounded-sm px-2 py-1.5 text-base leading-none text-zinc-300 hover:text-emerald-400"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+              >
+                <path
+                  d={
+                    fullscreen
+                      ? "M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6"
+                      : "M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"
+                  }
+                />
+              </svg>
+            </button>
           </span>
         </div>
         {!connected && (
-          <p role="status" className="blink text-sm text-red-400">
+          <p
+            role="status"
+            className="blink absolute top-12 left-1/2 z-30 -translate-x-1/2 rounded-sm bg-[#06030d]/90 px-3 py-1 text-sm text-red-400"
+          >
             Reconnecting…
           </p>
         )}
-        <Game code={code} slot={slot} players={players} me={me} />
+        <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center-safe overflow-x-hidden overflow-y-auto px-3 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5">
+          <Game code={code} slot={slot} players={players} me={me} />
+        </div>
         <Loading key={current.id} game={current} />
         {paused && (
           <PauseMenu
@@ -383,7 +447,7 @@ export default function Lobby({ code }: { code: string }) {
             <span className="pixel text-[0.45rem] tracking-[0.3em] text-zinc-500">Room code</span>
             <span className="marquee pixel text-xl tracking-[0.2em] sm:text-2xl">{code}</span>
           </div>
-          <div className="mr-10 flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-2">
             <Invite code={code} />
             <button
               onClick={() => {
@@ -409,7 +473,14 @@ export default function Lobby({ code }: { code: string }) {
           )}
         </p>
 
-        <GameSelect players={players.length} onPlay={(g) => setGame(g.id)} />
+        <GameSelect
+          players={players.length}
+          onPlay={(g) => {
+            asked.current = g.id;
+            if (settings().fullscreen) enterFullscreen();
+            setGame(g.id);
+          }}
+        />
 
         <footer className="pt-2 text-center text-base text-zinc-600">
           Anyone with the code can walk in. Reload and you keep your seat; close the tab and it

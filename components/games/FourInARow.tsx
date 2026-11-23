@@ -234,55 +234,8 @@ export default function FourInARow({ code, players, me }: GameProps) {
           : `${name(table.seats[table.turn])} is dropping…`;
 
   return (
-    <div className="flex w-full max-w-3xl flex-col items-center gap-4">
-      <p className="text-center text-sm text-zinc-400">
-        Drop discs, line up four — across, up or on the slant. Drag to look around.
-      </p>
-
-      {table && (
-        <ul className="flex flex-wrap justify-center gap-2">
-          {table.seats.map((id, seat) => (
-            <li
-              key={seat}
-              className={`cab flex items-center gap-2 rounded-md px-3 py-1.5 text-sm ${
-                table.winner === -1 && table.turn === seat ? "cab-hot" : ""
-              }`}
-            >
-              <span
-                aria-hidden
-                className="inline-block h-3 w-3 rounded-full"
-                style={{
-                  background: CSS[seat],
-                  boxShadow: `0 0 8px ${CSS[seat]}`,
-                }}
-              />
-              <span className="text-zinc-200">
-                {name(id)}
-                {id === me.id && " (you)"}
-              </span>
-              <span className="neon-green">{table.score[seat]}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <p
-        role="status"
-        className={`text-center text-sm ${
-          table && table.winner !== -1
-            ? "flash-win neon-green pixel text-[0.65rem]"
-            : myTurn
-              ? "text-emerald-400"
-              : "text-zinc-400"
-        }`}
-      >
-        {status}
-      </p>
-
-      <div
-        ref={mount}
-        className="cab relative h-[52vh] max-h-[520px] min-h-[300px] w-full overflow-hidden rounded-md"
-      >
+    <div className="absolute inset-0 overflow-hidden">
+      <div ref={mount} className="absolute inset-0">
         {failed && (
           <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-red-400">
             This browser could not start 3D graphics. Try another browser or turn on hardware
@@ -291,35 +244,78 @@ export default function FourInARow({ code, players, me }: GameProps) {
         )}
       </div>
 
-      {table && mySeat >= 0 && table.winner === -1 && (
-        <div
-          className="grid w-full max-w-md grid-cols-7 gap-1"
-          role="group"
-          aria-label="Drop in column"
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 p-3">
+        {table && (
+          <ul className="flex flex-wrap justify-center gap-1.5">
+            {table.seats.map((id, seat) => (
+              <li
+                key={seat}
+                className={`cab flex items-center gap-2 rounded-md px-2.5 py-1 text-sm ${
+                  table.winner === -1 && table.turn === seat ? "cab-hot" : ""
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className="inline-block h-3 w-3 rounded-full"
+                  style={{
+                    background: CSS[seat],
+                    boxShadow: `0 0 8px ${CSS[seat]}`,
+                  }}
+                />
+                <span className="text-zinc-200">
+                  {name(id)}
+                  {id === me.id && " (you)"}
+                </span>
+                <span className="neon-green">{table.score[seat]}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p
+          role="status"
+          className={`rounded-sm bg-[#06030d]/75 px-3 py-1.5 text-center text-sm sm:text-base ${
+            table && table.winner !== -1
+              ? "flash-win neon-green pixel text-[0.65rem]"
+              : myTurn
+                ? "text-emerald-400"
+                : "text-zinc-300"
+          }`}
         >
-          {Array.from({ length: COLS }, (_, c) => (
-            <button
-              key={c}
-              onClick={() => play(c)}
-              disabled={!myTurn || table.cols[c].length >= ROWS}
-              aria-label={`Column ${c + 1}`}
-              className="btn-ghost rounded-sm py-2 text-[0.55rem] disabled:opacity-30"
-            >
-              {c + 1}
-            </button>
-          ))}
-        </div>
-      )}
+          {status}
+        </p>
+      </div>
 
-      {table && mySeat < 0 && (
-        <p className="text-xs text-zinc-500">Two seats only — you are watching.</p>
-      )}
-
-      {(isHost || (table && mySeat >= 0)) && canStart && (
-        <button onClick={start} className="btn-arcade rounded-sm px-4 py-2">
-          {table && !gone ? "Rematch" : "Start"}
-        </button>
-      )}
+      <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        {table && mySeat >= 0 && table.winner === -1 && (
+          <div
+            className="grid w-full max-w-md grid-cols-7 gap-1"
+            role="group"
+            aria-label="Drop in column"
+          >
+            {Array.from({ length: COLS }, (_, c) => (
+              <button
+                key={c}
+                onClick={() => play(c)}
+                disabled={!myTurn || table.cols[c].length >= ROWS}
+                aria-label={`Column ${c + 1}`}
+                className="btn-ghost rounded-sm bg-[#06030d]/80 py-3 text-[0.55rem] disabled:opacity-30"
+              >
+                {c + 1}
+              </button>
+            ))}
+          </div>
+        )}
+        {table && mySeat < 0 && (
+          <p className="rounded-sm bg-[#06030d]/75 px-2 py-1 text-xs text-zinc-400">
+            Two seats only — you are watching.
+          </p>
+        )}
+        {(isHost || (table && mySeat >= 0)) && canStart && (
+          <button onClick={start} className="btn-arcade play-pulse rounded-sm px-6 py-3">
+            {table && !gone ? "Rematch" : "Start"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

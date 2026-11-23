@@ -112,7 +112,7 @@ export default function Topple({ code, players, me }: GameProps) {
   const mount = useRef<HTMLDivElement>(null);
   const view = useRef<View | null>(null);
   const [failed] = useState(() => !has3D());
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState<boolean | "failed">(false);
   const [mode, setMode] = useState<Mode>("idle");
   const [cursor, setCursor] = useState(-1);
   const stream = useBroadcast<Live>(`topple-live:${code}`, "live", (l) => view.current?.live(l));
@@ -322,7 +322,8 @@ export default function Topple({ code, players, me }: GameProps) {
         const speed = Math.abs(step) / dt;
         if (speed > SAFE_SPEED) {
           const level = Math.round((origin.y - H / 2) / H);
-          const kick = GRIP * Math.min(1, (speed - SAFE_SPEED) / 3) * GRAVITY * dt * Math.sign(step);
+          const kick =
+            GRIP * Math.min(1, (speed - SAFE_SPEED) / 3) * GRAVITY * dt * Math.sign(step);
           bodies.forEach((other, i) => {
             if (i === held || Math.round((other.translation().y - H / 2) / H) !== level + 1) return;
             const m = other.mass();
@@ -554,14 +555,16 @@ export default function Topple({ code, players, me }: GameProps) {
       },
     };
 
-    import("@dimforge/rapier3d-compat").then(async (m) => {
-      await m.default.init();
-      if (!alive) return;
-      R = m.default;
-      setReady(true);
-      const t = latest.current.table;
-      if (t) view.current?.sync(t, latest.current.myTurn);
-    });
+    import("@dimforge/rapier3d-compat")
+      .then(async (m) => {
+        await m.default.init();
+        if (!alive) return;
+        R = m.default;
+        setReady(true);
+        const t = latest.current.table;
+        if (t) view.current?.sync(t, latest.current.myTurn);
+      })
+      .catch(() => alive && setReady("failed"));
     const first = latest.current.table ?? newTower([]);
     round = first.round;
     rebuild(first);
@@ -627,57 +630,21 @@ export default function Topple({ code, players, me }: GameProps) {
     : table.loser
       ? `${name(table.loser)} brought the tower down!`
       : myTurn
-        ? ready
-          ? HINT[mode]
-          : "Loading the physics…"
+        ? ready === "failed"
+          ? "The physics engine could not start in this browser. Reload to try again."
+          : ready
+            ? HINT[mode]
+            : "Loading the physics…"
         : `${name(up)} is pulling…`;
 
   return (
-    <div className="flex w-full max-w-3xl flex-col items-center gap-4">
-      <p className="text-center text-sm text-zinc-400">
-        Take turns sliding a block out with your mouse or finger and setting it on top. Real
-        physics: pull carelessly and the blocks above come with it. Whoever brings the tower down
-        loses the round.
-      </p>
-
-      <ul className="flex flex-wrap justify-center gap-2">
-        {(table?.order ?? players.map((p) => p.id)).map((id) => (
-          <li
-            key={id}
-            className={`cab rounded-md px-3 py-1.5 text-sm ${up === id ? "cab-hot" : ""} ${
-              table?.loser === id ? "border-red-500" : ""
-            }`}
-          >
-            <span className="text-zinc-200">
-              {name(id)}
-              {id === me.id && " (you)"}
-            </span>{" "}
-            <span className="text-red-400" title="Towers knocked down">
-              {"▼".repeat(Math.min(99, table?.falls[id] ?? 0))}
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      <p
-        role="status"
-        className={`text-center text-sm ${
-          table?.loser
-            ? "flash-win pixel text-[0.65rem] text-red-400"
-            : myTurn
-              ? "text-emerald-400"
-              : "text-zinc-400"
-        }`}
-      >
-        {status}
-      </p>
-
+    <div className="absolute inset-0 overflow-hidden">
       <div
         ref={mount}
         tabIndex={0}
         onKeyDown={onKey}
         aria-label="Tower. Arrow keys pick a block, Enter pulls it out and stacks it on top."
-        className="cab relative h-[62vh] max-h-[640px] min-h-[360px] w-full touch-none overflow-hidden rounded-md outline-none focus-visible:border-cyan-400"
+        className="absolute inset-0 touch-none outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-inset"
       >
         {failed && (
           <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-red-400">
@@ -685,31 +652,66 @@ export default function Topple({ code, players, me }: GameProps) {
             acceleration.
           </p>
         )}
-        {table && !table.loser && (
-          <span className="pixel pointer-events-none absolute top-3 left-3 text-[0.5rem] text-zinc-400">
-            {height(table.poses)} levels · {table.pulls} pulls
-          </span>
-        )}
       </div>
 
-      {upGone && isHost && table && !table.loser && (
-        <button
-          onClick={() => send(leave(table))}
-          className="btn-ghost rounded-sm px-3 py-2 text-[0.55rem]"
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 p-3">
+        <ul className="flex flex-wrap justify-center gap-1.5">
+          {(table?.order ?? players.map((p) => p.id)).map((id) => (
+            <li
+              key={id}
+              className={`cab rounded-md px-2.5 py-1 text-sm ${up === id ? "cab-hot" : ""} ${
+                table?.loser === id ? "border-red-500" : ""
+              }`}
+            >
+              <span className="text-zinc-200">
+                {name(id)}
+                {id === me.id && " (you)"}
+              </span>{" "}
+              <span className="text-red-400" title="Towers knocked down">
+                {"▼".repeat(Math.min(99, table?.falls[id] ?? 0))}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p
+          role="status"
+          className={`rounded-sm bg-[#06030d]/75 px-3 py-1.5 text-center text-sm sm:text-base ${
+            table?.loser
+              ? "flash-win pixel text-[0.65rem] text-red-400"
+              : myTurn
+                ? "text-emerald-400"
+                : "text-zinc-300"
+          }`}
         >
-          Whoever is up left the room — skip them
-        </button>
+          {status}
+        </p>
+      </div>
+
+      {table && !table.loser && (
+        <span className="pixel pointer-events-none absolute bottom-3 left-3 rounded-sm bg-[#06030d]/70 px-2 py-1 text-[0.5rem] text-zinc-300">
+          {height(table.poses)} levels · {table.pulls} pulls
+        </span>
       )}
 
-      {isHost && (!table || table.loser) && (
-        <button
-          onClick={start}
-          disabled={players.length < 2}
-          className="btn-arcade rounded-sm px-4 py-2 disabled:opacity-40"
-        >
-          {table ? "Rebuild" : "Start"}
-        </button>
-      )}
+      <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        {upGone && isHost && table && !table.loser && (
+          <button
+            onClick={() => send(leave(table))}
+            className="btn-ghost rounded-sm bg-[#06030d]/80 px-3 py-2 text-[0.55rem]"
+          >
+            Whoever is up left the room — skip them
+          </button>
+        )}
+        {isHost && (!table || table.loser) && (
+          <button
+            onClick={start}
+            disabled={players.length < 2}
+            className="btn-arcade play-pulse rounded-sm px-6 py-3 disabled:opacity-40"
+          >
+            {table ? "Rebuild" : "Start"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
