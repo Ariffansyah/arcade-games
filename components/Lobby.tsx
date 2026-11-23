@@ -23,6 +23,7 @@ import LastCard from "@/components/games/LastCard";
 import Topple from "@/components/games/Topple";
 import FourInARow from "@/components/games/FourInARow";
 import Yacht from "@/components/games/Yacht";
+import Landlord from "@/components/games/Landlord";
 
 const CABINETS: Record<string, React.ComponentType<GameProps>> = {
   doodle: DoodleGuess,
@@ -45,6 +46,7 @@ const CABINETS: Record<string, React.ComponentType<GameProps>> = {
   topple: Topple,
   four: FourInARow,
   yacht: Yacht,
+  landlord: Landlord,
 };
 
 type Filter = "all" | "co-op" | "versus";

@@ -22,88 +22,13 @@ import {
 } from "@/lib/yacht.ts";
 import { useTable } from "@/lib/useTable";
 import type { GameProps } from "@/lib/useRoom";
-import { createStage, has3D, ease, type Stage } from "./stage";
+import { createStage, has3D, type Stage } from "./stage";
+import { createDice, slide, stepDie, toss, upright } from "./dice";
 
-// Box faces in three.js order (+x, -x, +y, -y, +z, -z) and the turn that brings each to the top.
-const FACE_VALUES = [2, 5, 1, 6, 3, 4];
-const UPRIGHT: Record<number, THREE.Euler> = {
-  1: new THREE.Euler(0, 0, 0),
-  6: new THREE.Euler(Math.PI, 0, 0),
-  2: new THREE.Euler(0, 0, Math.PI / 2),
-  5: new THREE.Euler(0, 0, -Math.PI / 2),
-  3: new THREE.Euler(-Math.PI / 2, 0, 0),
-  4: new THREE.Euler(Math.PI / 2, 0, 0),
-};
-const PIPS: Record<number, [number, number][]> = {
-  1: [[0.5, 0.5]],
-  2: [
-    [0.27, 0.27],
-    [0.73, 0.73],
-  ],
-  3: [
-    [0.25, 0.25],
-    [0.5, 0.5],
-    [0.75, 0.75],
-  ],
-  4: [
-    [0.27, 0.27],
-    [0.73, 0.27],
-    [0.27, 0.73],
-    [0.73, 0.73],
-  ],
-  5: [
-    [0.25, 0.25],
-    [0.75, 0.25],
-    [0.5, 0.5],
-    [0.25, 0.75],
-    [0.75, 0.75],
-  ],
-  6: [
-    [0.27, 0.22],
-    [0.73, 0.22],
-    [0.27, 0.5],
-    [0.73, 0.5],
-    [0.27, 0.78],
-    [0.73, 0.78],
-  ],
-};
 const GLYPHS = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
 const restAt = (i: number, held: boolean) =>
   new THREE.Vector3((i - 2) * 1.7, 0.5, held ? 2.6 : -0.4);
-
-function faceTexture(value: number) {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 256;
-  const g = canvas.getContext("2d")!;
-  g.fillStyle = "#f7f3ff";
-  g.fillRect(0, 0, 256, 256);
-  for (const [x, y] of PIPS[value]) {
-    g.beginPath();
-    g.arc(x * 256, y * 256, value === 1 ? 34 : 24, 0, Math.PI * 2);
-    g.fillStyle = value === 1 ? "#ff2d95" : "#120b22";
-    g.fill();
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
-type Die = {
-  mesh: THREE.Mesh;
-  from: THREE.Vector3;
-  to: THREE.Vector3;
-  spin: THREE.Vector3;
-  turns: number;
-  end: THREE.Quaternion;
-  t: number;
-  dur: number;
-};
-
-const upright = (value: number, yaw: number) =>
-  new THREE.Quaternion()
-    .setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw)
-    .multiply(new THREE.Quaternion().setFromEuler(UPRIGHT[value]));
 
 export default function Yacht({ code, players, me }: GameProps) {
   const [table, send] = useTable<Game>(`yacht:${code}`, me.id);
@@ -132,9 +57,7 @@ export default function Yacht({ code, players, me }: GameProps) {
   useEffect(() => {
     const host = mount.current;
     if (!host || failed) return;
-    const textures = FACE_VALUES.map(faceTexture);
-    const geometry = new RoundedBoxGeometry(1, 1, 1, 5, 0.14);
-    const dice: Die[] = [];
+    const { dice, dispose } = createDice(DICE);
     let throws = -1;
     let round = -1;
 
@@ -143,15 +66,7 @@ export default function Yacht({ code, players, me }: GameProps) {
         const y = latest.current.table;
         dice.forEach((d, i) => {
           const held = !!y?.held[i] && y.rolls > 0;
-          d.t = Math.min(d.dur, d.t + dt);
-          const k = d.t / d.dur;
-          const e = ease(k);
-          d.mesh.position.lerpVectors(d.from, d.to, e);
-          // A few shrinking hops while the die travels, landing flat on the felt.
-          if (d.turns)
-            d.mesh.position.y = d.to.y + (1 - k) ** 2 * 3.2 * Math.abs(Math.cos(k * Math.PI * 2.5));
-          const wind = new THREE.Quaternion().setFromAxisAngle(d.spin, (1 - e) * d.turns);
-          d.mesh.quaternion.copy(d.end).premultiply(wind);
+          stepDie(d, dt);
           if (held) d.mesh.position.y += 0.15 + Math.sin(time * 3 + i) * 0.06;
           for (const m of d.mesh.material as THREE.MeshStandardMaterial[]) {
             m.emissive.setHex(held ? 0x22d3ee : 0x000000);
@@ -204,33 +119,11 @@ export default function Yacht({ code, players, me }: GameProps) {
     line.position.set(0, 0.02, 1.4);
     s.scene.add(felt, rail, line);
 
-    for (let i = 0; i < DICE; i++) {
-      const mesh = new THREE.Mesh(
-        geometry,
-        textures.map(
-          (map) =>
-            new THREE.MeshStandardMaterial({
-              map,
-              roughness: 0.35,
-              metalness: 0.05,
-            })
-        )
-      );
-      mesh.castShadow = true;
-      mesh.userData.i = i;
-      s.scene.add(mesh);
-      const at = restAt(i, false);
-      dice.push({
-        mesh,
-        from: at.clone(),
-        to: at.clone(),
-        spin: new THREE.Vector3(0, 1, 0),
-        turns: 0,
-        end: upright(i + 1, 0),
-        t: 1,
-        dur: 1,
-      });
-    }
+    dice.forEach((d, i) => {
+      d.from = restAt(i, false);
+      d.to = restAt(i, false);
+      s.scene.add(d.mesh);
+    });
 
     view.current = {
       sync: (y) => {
@@ -243,21 +136,20 @@ export default function Yacht({ code, players, me }: GameProps) {
             new THREE.Vector3((random() - 0.5) * 0.5, 0, (random() - 0.5) * 0.5)
           );
           const rolled = !fresh && y.throws !== throws && !y.held[i] && throws >= 0;
-          d.from = d.mesh.position.clone().setY(0.5);
-          d.to = to;
-          if (rolled) {
-            d.from = new THREE.Vector3(-7 + random(), 0.5, 3.5 + random() * 2);
-            d.spin = new THREE.Vector3(random() - 0.5, random() - 0.5, random() - 0.5).normalize();
-            d.turns = Math.PI * (5 + random() * 5);
-            d.end = upright(y.dice[i], (random() - 0.5) * 1.2);
-            d.t = 0;
-            d.dur = 0.9 + random() * 0.35;
-          } else {
-            d.turns = 0;
-            d.end = d.t >= d.dur && !fresh ? d.end : upright(y.dice[i], (random() - 0.5) * 0.6);
-            d.t = 0;
-            d.dur = 0.35;
-          }
+          if (rolled)
+            toss(
+              d,
+              y.dice[i],
+              new THREE.Vector3(-7 + random(), 0.5, 3.5 + random() * 2),
+              to,
+              random
+            );
+          else
+            slide(
+              d,
+              to,
+              d.t >= d.dur && !fresh ? d.end : upright(y.dice[i], (random() - 0.5) * 0.6)
+            );
         });
         throws = y.throws;
         round = y.round;
@@ -267,7 +159,7 @@ export default function Yacht({ code, players, me }: GameProps) {
 
     return () => {
       view.current = null;
-      for (const t of textures) t.dispose();
+      dispose();
       s.dispose();
     };
   }, [failed]);

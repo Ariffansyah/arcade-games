@@ -192,6 +192,15 @@ export const GAMES: GameInfo[] = [
     party: true,
     mood: "versus",
   },
+  {
+    id: "landlord",
+    name: "Landlord",
+    blurb: "The property game on a 3D board. Buy streets, build hotels, bankrupt your friends.",
+    art: "⌂",
+    seats: 2,
+    party: true,
+    mood: "versus",
+  },
 ];
 
 export const isTogether = (g: GameInfo) => g.mood === "co-op";

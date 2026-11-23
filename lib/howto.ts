@@ -321,4 +321,22 @@ export const HOWTO: Record<string, Guide> = {
       "Sometimes the right move is a zero in Yacht or Ones rather than wrecking a box you can still fill well.",
     ],
   },
+
+  landlord: {
+    goal: "Be the last player with money. Everyone else goes bankrupt paying you rent.",
+    round: [
+      "Everyone starts on GO with $1500. On your turn roll two dice and your pawn hops that many squares; pass GO and you collect $200.",
+      "Land on a street, train line or utility nobody owns and you can buy it. Pass, and it stays with the bank.",
+      "Land on one somebody owns and you pay them rent automatically. Glitch and Bonus squares draw a card; taxes go to the bank.",
+      "Own a whole colour set and its rent doubles. Then build houses — evenly across the set — and a fifth turns into a hotel.",
+      "Doubles roll again, but a third double in one turn sends you to jail. In jail, roll doubles or pay $50 to walk out; after three misses you pay and go.",
+    ],
+    scoring:
+      "Run out of money and the bank sells your buildings back at half price first. If that still is not enough you are out, and everything you own goes to whoever you owed. Last one standing wins. The host can call it early, in which case the highest net worth — cash plus deeds plus buildings — takes it.",
+    tips: [
+      "The orange and red sets get landed on more than any others: jail sits just before them.",
+      "Three houses is where rent jumps hardest. Get a set to three before spreading out.",
+      "Keep some cash back. Selling buildings to pay rent only gets you half of what you spent.",
+    ],
+  },
 };
