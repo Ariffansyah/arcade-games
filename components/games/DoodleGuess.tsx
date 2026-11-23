@@ -72,12 +72,15 @@ export default function DoodleGuess({ code, players, me }: GameProps) {
       setRound(next);
       noteSolve(next);
       publish(next);
-      await supabase.from("game_state").upsert({
-        room_code: code,
-        game: "doodle",
-        state: next,
-        updated_at: new Date().toISOString(),
-      });
+      await supabase
+        .from("game_state")
+        .upsert({
+          room_code: code,
+          game: "doodle",
+          state: next,
+          updated_at: new Date().toISOString(),
+        })
+        .setHeader("x-room-code", code);
     },
     [code, noteSolve, publish]
   );
@@ -89,6 +92,7 @@ export default function DoodleGuess({ code, players, me }: GameProps) {
         .from("game_state")
         .select("game, state")
         .eq("room_code", code)
+        .setHeader("x-room-code", code)
         .maybeSingle();
       if (live && data?.game === "doodle") setRound(data.state as Doodle);
     })();

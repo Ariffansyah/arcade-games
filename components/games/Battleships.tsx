@@ -66,12 +66,15 @@ export default function Battleships({ code, slot, players }: GameProps) {
     async (next: Battleship) => {
       setGame(next);
       publish(next);
-      await supabase.from("game_state").upsert({
-        room_code: code,
-        game: "battleship",
-        state: next,
-        updated_at: new Date().toISOString(),
-      });
+      await supabase
+        .from("game_state")
+        .upsert({
+          room_code: code,
+          game: "battleship",
+          state: next,
+          updated_at: new Date().toISOString(),
+        })
+        .setHeader("x-room-code", code);
     },
     [code, publish]
   );
@@ -83,6 +86,7 @@ export default function Battleships({ code, slot, players }: GameProps) {
         .from("game_state")
         .select("game, state")
         .eq("room_code", code)
+        .setHeader("x-room-code", code)
         .maybeSingle();
       if (!live) return;
 

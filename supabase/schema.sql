@@ -74,14 +74,13 @@ grant all on table public.rate_limits to service_role;
 -- else, and also copy their round into a row so a player who reloads gets the
 -- board back.
 --
--- READ THIS BEFORE SHIPPING: with no accounts there is no way to scope a row to
--- "whoever knows the room code" — the browser holds the anon key, so any policy
--- that lets the app read a room lets anyone read every room. RLS below therefore
--- keeps the table writable by the app and readable by anyone who bothers,
--- including a list of every live room code.
+-- With no accounts, a row belongs to whoever knows the room code: the app sends
+-- the code in an x-room-code header and every policy matches the row against
+-- it, so the public key cannot list live rooms or read one it has no code for.
+-- Anyone in the room can still read the row, Battleships fleets included.
 --
--- If that is not acceptable, the fix is to move those two cabinets onto the
--- broadcast channel like the other fourteen and drop this table entirely.
+-- The check constraint keeps a row small and well-formed, so the public key
+-- cannot fill the free-tier database with junk.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 create table if not exists public.game_state (
@@ -91,19 +90,41 @@ create table if not exists public.game_state (
   updated_at timestamptz not null default now()
 );
 
+alter table public.game_state drop constraint if exists game_state_sane;
+-- NOT VALID so rows written before this check don't block the migration; the sweep clears them.
+alter table public.game_state add constraint game_state_sane check (
+  room_code ~ '^[ACDEFGHJKMNPQRTUVWXY34679]{6}$'
+  and game in ('doodle', 'battleship')
+  and octet_length(state::text) <= 65536
+) not valid;
+
 alter table public.game_state enable row level security;
 
+create or replace function public.room_header()
+returns text
+language sql
+stable
+set search_path = ''
+as $$
+  select nullif(current_setting('request.headers', true), '')::json ->> 'x-room-code';
+$$;
+
 drop policy if exists "anyone may read a room" on public.game_state;
-create policy "anyone may read a room" on public.game_state
-  for select to anon, authenticated using (true);
+drop policy if exists "players may read their room" on public.game_state;
+create policy "players may read their room" on public.game_state
+  for select to anon, authenticated using (room_code = public.room_header());
 
 drop policy if exists "anyone may open a room" on public.game_state;
-create policy "anyone may open a room" on public.game_state
-  for insert to anon, authenticated with check (true);
+drop policy if exists "players may open their room" on public.game_state;
+create policy "players may open their room" on public.game_state
+  for insert to anon, authenticated with check (room_code = public.room_header());
 
 drop policy if exists "anyone may play a room" on public.game_state;
-create policy "anyone may play a room" on public.game_state
-  for update to anon, authenticated using (true) with check (true);
+drop policy if exists "players may play their room" on public.game_state;
+create policy "players may play their room" on public.game_state
+  for update to anon, authenticated
+  using (room_code = public.room_header())
+  with check (room_code = public.room_header());
 
 -- No delete policy: rooms are cleared by the sweep below, not by players.
 

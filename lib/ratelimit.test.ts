@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { allow, callerKey, rateLimit, resetLimits } from "./ratelimit.ts";
+import { resetAdmin } from "./supabaseAdmin.ts";
 
 test("requests pass up to the limit, then get refused", () => {
   resetLimits();
@@ -60,4 +61,27 @@ test("the caller key trusts the platform's header over the client's", () => {
   assert.equal(key({ "x-real-ip": "2.2.2.2", "x-forwarded-for": "9.9.9.9" }), "doodle:2.2.2.2");
   assert.equal(key({ "x-forwarded-for": "3.3.3.3, 4.4.4.4" }), "doodle:3.3.3.3");
   assert.equal(key({}), "doodle:unknown");
+});
+
+test("a flood is refused in memory before it reaches the shared store", async (t) => {
+  resetLimits();
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    calls += 1;
+    return Response.json({ message: "down" }, { status: 500 });
+  });
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "http://store.test";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
+  resetAdmin();
+  t.after(() => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    resetAdmin();
+  });
+
+  const check = { key: "flood", limit: 2, windowMs: 60_000 };
+  assert.equal((await allow([check])).ok, true);
+  assert.equal((await allow([check])).ok, true);
+  for (let i = 0; i < 50; i++) assert.equal((await allow([check])).ok, false);
+  assert.equal(calls, 2);
 });

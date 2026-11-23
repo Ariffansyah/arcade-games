@@ -32,9 +32,10 @@ export function rateLimit(key: string, limit: number, windowMs: number): Verdict
 export async function allow(checks: Check[]): Promise<Verdict> {
   const store = admin();
   for (const check of checks) {
-    const verdict = store
-      ? await takeShared(store, check)
-      : rateLimit(check.key, check.limit, check.windowMs);
+    // Memory first, so a flood that one instance can already see is refused without
+    // a database round trip per request.
+    let verdict = rateLimit(check.key, check.limit, check.windowMs);
+    if (verdict.ok && store) verdict = (await takeShared(store, check)) ?? verdict;
     if (!verdict.ok) return verdict;
   }
   return { ok: true, retryAfter: 0 };
@@ -43,7 +44,7 @@ export async function allow(checks: Check[]): Promise<Verdict> {
 async function takeShared(
   store: NonNullable<ReturnType<typeof admin>>,
   { key, limit, windowMs }: Check
-): Promise<Verdict> {
+): Promise<Verdict | null> {
   const { data, error } = await store.rpc("take_token", {
     p_key: key,
     p_limit: limit,
@@ -53,7 +54,7 @@ async function takeShared(
   const row = Array.isArray(data) ? data[0] : null;
   if (error || !row) {
     console.error("rate limit store unavailable, counting in memory:", error?.message);
-    return rateLimit(key, limit, windowMs);
+    return null;
   }
   return { ok: Boolean(row.allowed), retryAfter: Number(row.retry_after) || 0 };
 }
