@@ -72,6 +72,8 @@ export function Seat({
   chips,
   hot = false,
   dim = false,
+  won = false,
+  clock,
   badge,
   children,
 }: {
@@ -80,11 +82,16 @@ export function Seat({
   chips: number;
   hot?: boolean;
   dim?: boolean;
+  won?: boolean;
+  // Share of the turn's time left, drawn under the avatar of whoever is up.
+  clock?: number;
   badge?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   return (
-    <div className={`flex flex-col items-center gap-1.5 ${dim ? "opacity-45" : ""}`}>
+    <div
+      className={`flex flex-col items-center gap-1.5 ${dim ? "opacity-45" : ""} ${won ? "flash-win" : ""}`}
+    >
       <div className="relative flex flex-col items-center">
         <span className={`seat-banner ${hot ? "seat-banner-hot" : ""}`}>
           <span className="truncate">{name}</span>
@@ -98,6 +105,16 @@ export function Seat({
               : "border-zinc-200/70"
           }`}
         />
+        {hot && clock !== undefined && (
+          <span aria-hidden className="mt-1 h-1 w-full overflow-hidden rounded-sm bg-zinc-800">
+            <span
+              className={`block h-full transition-[width] duration-200 ease-linear ${
+                clock <= 0.25 ? "bg-red-500" : "bg-emerald-400"
+              }`}
+              style={{ width: `${clock * 100}%` }}
+            />
+          </span>
+        )}
         {badge}
       </div>
       {children}
@@ -105,21 +122,65 @@ export function Seat({
   );
 }
 
-// A row of overlapping cards, face down where `cards` has no card.
-export function Fan({ cards, size }: { cards: (number | undefined)[]; size: string }) {
+export const GLOW = "0 0 0 0.16em #ffc83d, 0 0 1.2em rgba(255, 200, 61, 0.7)";
+
+// A row of overlapping cards, face down where `cards` has no card. Given a `round`, each card
+// flies in from `from` (a vertical offset) when it's dealt, the first two staggered by `delay`
+// and `step` the way a dealer goes round the table; later cards are hits that arrive at once, or
+// `later` ms apart when several land together, like the dealer drawing out.
+// A card turned face up flips over where it lies. Cards in `glow` are lit, the rest dimmed.
+export function Fan({
+  cards,
+  size,
+  round,
+  from = "-30vh",
+  delay = 0,
+  step = 0,
+  later = 0,
+  glow,
+}: {
+  cards: (number | undefined)[];
+  size: string;
+  round?: string | number;
+  from?: string;
+  delay?: number;
+  step?: number;
+  later?: number;
+  glow?: number[];
+}) {
   return (
     <div className="flex" style={{ fontSize: size }}>
-      {cards.map((c, i) => (
-        <span
-          key={`${i}-${c}`}
-          style={{
-            marginLeft: i ? "-3.4em" : 0,
-            transform: `rotate(${(i - (cards.length - 1) / 2) * 5}deg)`,
-          }}
-        >
-          <PlayingCard card={c} className="card-reveal" />
-        </span>
-      ))}
+      {cards.map((c, i) => {
+        const lit = c !== undefined && glow?.includes(c);
+        return (
+          <span
+            key={round === undefined ? `${i}-${c}` : `${round}-${i}`}
+            className={round === undefined ? "" : "deal-in"}
+            style={
+              {
+                marginLeft: i ? "-3.4em" : 0,
+                "--dy": from,
+                "--delay": `${i < 2 ? delay + i * step : (i - 1) * later}ms`,
+              } as React.CSSProperties
+            }
+          >
+            <span
+              className="block transition-[transform,filter] duration-300"
+              style={{
+                transform: `rotate(${(i - (cards.length - 1) / 2) * 5}deg) translateY(${lit ? -0.7 : 0}em)`,
+                filter: glow?.length && !lit ? "brightness(0.6)" : undefined,
+              }}
+            >
+              <PlayingCard
+                key={c ?? "back"}
+                card={c}
+                className="card-reveal"
+                style={lit ? { boxShadow: GLOW } : undefined}
+              />
+            </span>
+          </span>
+        );
+      })}
     </div>
   );
 }

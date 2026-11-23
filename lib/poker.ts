@@ -1,9 +1,13 @@
 import { shuffle } from "./rng.ts";
-import { rank, suit } from "./cards.ts";
+import { RANK_NAMES, rank, suit } from "./cards.ts";
 
 export const STACK = 1000;
 export const BLIND = 10;
-const BIG = BLIND * 2;
+// Blinds double every this many hands, so a long game still comes to an end.
+export const BLINDS_EVERY = 10;
+export const TURN_MS = 30_000;
+
+export const blindAt = (hand: number) => BLIND * 2 ** Math.floor((hand - 1) / BLINDS_EVERY);
 
 export const HANDS = [
   "High card",
@@ -21,11 +25,15 @@ export type Move = {
   by: string;
   act: "fold" | "check" | "call" | "bet" | "raise" | "allin";
   amount?: number;
+  // The clock ran out and the table moved for them.
+  late?: boolean;
 };
 
 export type Poker = {
   seed: string;
   hand: number;
+  // The small blind this hand; the big blind is twice it.
+  blind: number;
   order: string[];
   // Chips behind, not counting what is already bet.
   chips: Record<string, number>;
@@ -98,6 +106,67 @@ const fives = (cards: number[], k = 5): number[][] =>
 export const best = (cards: number[]) => Math.max(...fives(cards).map((c) => score5(c)));
 export const handName = (score: number) => HANDS[Math.floor(score / TIE)];
 
+const plural = (r: number) => (RANK_NAMES[r] === "six" ? "sixes" : `${RANK_NAMES[r]}s`);
+const title = (s: string) => s[0].toUpperCase() + s.slice(1);
+
+// "Full house, kings full of sevens": the category, then the ranks that decide it.
+export function describe(score: number) {
+  const a = Math.floor(score / 13 ** 4) % 13;
+  const b = Math.floor(score / 13 ** 3) % 13;
+  const r = RANK_NAMES;
+  switch (Math.floor(score / TIE)) {
+    case 8:
+      return a === 12 ? "Royal flush" : `Straight flush, ${r[a]} high`;
+    case 7:
+      return `Four ${plural(a)}`;
+    case 6:
+      return `Full house, ${plural(a)} full of ${plural(b)}`;
+    case 5:
+      return `Flush, ${r[a]} high`;
+    case 4:
+      return `Straight, ${r[a]} high`;
+    case 3:
+      return `Three ${plural(a)}`;
+    case 2:
+      return `Two pair, ${plural(a)} and ${plural(b)}`;
+    case 1:
+      return `Pair of ${plural(a)}`;
+    default:
+      return `${title(r[a])} high`;
+  }
+}
+
+// What a player is holding right now: its name and the cards that make it — the pair in a pair,
+// all five in a flush, the top card when there's nothing. Before the flop there are only two.
+export function read(cards: number[]): { name: string; five: number[]; category: number } {
+  if (cards.length < 5) {
+    const [hi, lo] = cards.map(rank).sort((x, y) => y - x);
+    const suited = suit(cards[0]) === suit(cards[1]);
+    return hi === lo
+      ? { name: `Pair of ${plural(hi)}`, five: cards, category: 1 }
+      : {
+          name: `${title(RANK_NAMES[hi])}-${RANK_NAMES[lo]}${suited ? " suited" : ""}`,
+          five: cards,
+          category: 0,
+        };
+  }
+  let top = { score: -1, five: [] as number[] };
+  for (const five of fives(cards)) {
+    const score = score5(five);
+    if (score > top.score) top = { score, five };
+  }
+  const category = Math.floor(top.score / TIE);
+  const { five } = top;
+  const paired = five.filter((c) => five.filter((d) => rank(d) === rank(c)).length > 1);
+  const made =
+    category === 0
+      ? [five.reduce((a, b) => (rank(b) > rank(a) ? b : a))]
+      : [1, 2, 3, 7].includes(category)
+        ? paired
+        : five;
+  return { name: describe(top.score), five: made, category };
+}
+
 const top = (g: Poker) => Math.max(0, ...Object.values(g.bets));
 const live = (g: Poker) => g.order.filter((p) => !g.folded.includes(p));
 export const current = (g: Poker) => g.order[g.turn];
@@ -140,7 +209,7 @@ function advance(g: Poker): Poker {
     deck: g.deck.slice(count),
     bets: {},
     acted: [],
-    raise: BIG,
+    raise: g.blind * 2,
     turn: g.button,
   });
 }
@@ -174,7 +243,7 @@ function showdown(g: Poker): Poker {
     });
     floor = level;
   }
-  return settle(g, won, Object.fromEntries(alive.map((p) => [p, handName(score[p])])));
+  return settle(g, won, Object.fromEntries(alive.map((p) => [p, describe(score[p])])));
 }
 
 // A new hand. Chips carry over from `prev`; newcomers sit down with a full stack and anyone who
@@ -189,11 +258,13 @@ export function deal(seed: string, ids: string[], prev?: Poker | null): Poker {
     `${seed}:${hand}`
   );
   const button = (hand - 1) % n;
+  const blind = blindAt(hand);
   // Heads-up the button posts the small blind and acts first before the flop.
   const small = n === 2 ? button : (button + 1) % n;
   const g: Poker = {
     seed,
     hand,
+    blind,
     order,
     chips,
     holes: Object.fromEntries(order.map((id, i) => [id, [cards[i], cards[i + n]]])),
@@ -206,12 +277,12 @@ export function deal(seed: string, ids: string[], prev?: Poker | null): Poker {
     button,
     turn: (small + 1) % n,
     street: 0,
-    raise: BIG,
+    raise: blind * 2,
     won: null,
     shown: null,
     last: null,
   };
-  return advance(post(post(g, order[small], BLIND), order[(small + 1) % n], BIG));
+  return advance(post(post(g, order[small], blind), order[(small + 1) % n], blind * 2));
 }
 
 export function fold(g: Poker): Poker {
@@ -255,4 +326,11 @@ export function raise(g: Poker, to: number): Poker {
     raise: Math.max(g.raise, total - high),
     last: { by: id, act: !next.chips[id] ? "allin" : high ? "raise" : "bet", amount: total },
   });
+}
+
+// Out of time: check if that's free, otherwise fold.
+export function timeout(g: Poker): Poker {
+  if (g.won) return g;
+  const next = top(g) > (g.bets[current(g)] ?? 0) ? fold(g) : call(g);
+  return { ...next, last: next.last && { ...next.last, late: true } };
 }

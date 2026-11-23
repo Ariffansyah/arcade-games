@@ -267,6 +267,8 @@ export const HOWTO: Record<string, Guide> = {
       "House rules, each switched on by the host: Stack Numbers lays every card of one number in a turn; Call Last Card means calling it as you go down to one, or anyone can catch you for two; Jump-In lets an exact copy of the top card go down out of turn; Force Play puts a drawn fit straight down; No Bluffing makes Wild Draws land with no challenge; Draw to Match keeps you drawing until a card fits.",
       "No Mercy deck: adds Wild Draw Six and Wild Draw Ten and switches on its rules. Draw cards stack — answer with an equal or bigger one and whoever can't takes the lot. A 7 swaps hands with anyone, a 0 moves every hand on a seat, and anyone holding 25 cards or more is out of the round.",
       "Tongkrongan rules, the way a lot of friend groups in Indonesia play: Finish on a Number (gak boleh habis pakai kartu power) means a Skip, Reverse, draw card or wild can't be your last card. Bounce Draws (balikin +2) lets a Reverse send a draw stack back and a Skip pass it on. Play to the Loser (cari yang kalah) makes going out safe, and the round goes on until one player is left holding cards.",
+      "Every turn has a 20-second clock. Let it run out and you take whatever is waiting on you, or draw a card and pass.",
+      "Walk in mid-round and you are dealt seven cards and sit at the end of the order.",
     ],
     scoring:
       "Whoever empties their hand takes the round and scores everything still held by everyone else: numbers at face value, action cards 20 (10 to 30 on the Flip deck), wilds 50 (40 to 60 on Flip). Going out on a draw card still makes the next player pick up first, and those cards count. Scores carry over between rounds.",
@@ -281,11 +283,13 @@ export const HOWTO: Record<string, Guide> = {
   poker: {
     goal: "Win every chip at the table. Texas Hold'em: the last player with chips wins the game.",
     round: [
-      "Everyone sits down with 1000 chips. The dealer button moves one seat each hand; the two players after it post blinds of 10 and 20.",
+      "Everyone sits down with 1000 chips. The dealer button moves one seat each hand; the two players after it post blinds of 10 and 20, and the blinds double every 10 hands.",
       "You get two cards only you can see. Betting starts with the player after the big blind: fold, call the bet, or raise.",
       "Three shared cards come out (the flop), then a fourth (the turn) and a fifth (the river), with a round of betting after each.",
       "A raise must be at least as big as the last bet or raise. You can always go all in, even for less than a call.",
       "Everyone still in at the end shows their cards. The best five-card hand out of your two and the five on the table takes the pot.",
+      "Your hand is named under your cards as the board comes out — Pair of eights, Full house, kings full of sevens — and the five cards that make it light up.",
+      "Every turn has a 30-second clock. Let it run out and you check if that's free, otherwise you fold.",
     ],
     scoring:
       "Hands rank high card, pair, two pair, three of a kind, straight, flush, full house, four of a kind, straight flush. Equal hands split the pot. All in for less than the bet, you can only win as much from each player as you put in; the rest is a side pot for the others. Out of chips, you sit out until the host starts a new game.",
@@ -303,6 +307,9 @@ export const HOWTO: Record<string, Guide> = {
       "Everyone gets two cards face up. The dealer gets two, one of them face down.",
       "Number cards count their number, picture cards 10, and aces 1 or 11, whichever helps.",
       "On your turn hit to take a card or stand to stop. Double down on your first two cards to double the bet and take exactly one more. Over 21 is a bust and loses at once.",
+      "Two cards of the same rank can be split into two hands, each with its own bet, up to four hands. Split aces get one card each, and 21 after a split pays even money, not 3 to 2.",
+      "Don't like your first two cards? Surrender gives up the hand and returns half the bet.",
+      "Every turn has a 20-second clock. Let it run out and you sit the round out while betting, or stand while playing.",
       "When everyone has played, the dealer turns the hidden card and draws until reaching 17 or more.",
     ],
     scoring:

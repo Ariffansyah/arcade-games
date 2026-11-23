@@ -3,15 +3,19 @@ import test from "node:test";
 import { RANKS, SUITS } from "./cards.ts";
 import {
   BLIND,
+  BLINDS_EVERY,
   STACK,
   best,
   call,
   current,
   deal,
+  describe,
   fold,
   handName,
   pot,
   raise,
+  read,
+  timeout,
   type Poker,
 } from "./poker.ts";
 
@@ -111,7 +115,7 @@ test("a short all-in only wins the pot it covered; the side pot goes to the next
   g = call(call(g));
   assert.ok(g.won);
   assert.deepEqual(g.won, { a: 300, b: 800 });
-  assert.equal(g.shown?.a, "Pair");
+  assert.equal(g.shown?.a, "Pair of aces");
   assert.equal(g.chips.a + g.chips.b + g.chips.c, 2100);
 });
 
@@ -128,4 +132,44 @@ test("busted players sit out the next hand and newcomers get a stack", () => {
   const g = deal("room", ["a", "b", "c", "d"], prev);
   assert.deepEqual(g.order, ["b", "c", "d"]);
   assert.equal(g.chips.d + (g.put.d ?? 0), STACK);
+});
+
+test("hands are named the way players say them", () => {
+  const name = (h: string) => describe(best(cards(h)));
+  assert.equal(name("Ks Kh Kd 7c 7h"), "Full house, kings full of sevens");
+  assert.equal(name("10s Js Qs Ks As"), "Royal flush");
+  assert.equal(name("5h 6h 7h 8h 9h"), "Straight flush, nine high");
+  assert.equal(name("As 2h 3d 4c 5h"), "Straight, five high");
+  assert.equal(name("6s 6h 9d 9c Kh"), "Two pair, nines and sixes");
+  assert.equal(name("Qs Qh Qd 2c 5h"), "Three queens");
+  assert.equal(name("2s 5h 9d Jc Ah"), "Ace high");
+  assert.equal(read(cards("As Ks")).name, "Ace-king suited");
+  assert.equal(read(cards("8c 8d")).name, "Pair of eights");
+
+  const seven = read(cards("2h 7h 9h Jh Kh As Ad"));
+  assert.equal(seven.name, "Flush, king high");
+  assert.deepEqual(
+    [...seven.five].sort((x, y) => x - y),
+    cards("2h 7h 9h Jh Kh").sort((x, y) => x - y)
+  );
+  assert.deepEqual(read(cards("8c 8d 2h 5s Kd")).five, cards("8c 8d"), "a pair lights the pair");
+  assert.deepEqual(read(cards("9c 3d 2h 5s Kd")).five, cards("Kd"), "nothing lights the top card");
+});
+
+test("blinds double every few hands", () => {
+  const prev = { hand: BLINDS_EVERY, chips: { a: 1000, b: 1000, c: 1000 } } as unknown as Poker;
+  const g = deal("room", ["a", "b", "c"], prev);
+  assert.equal(g.blind, BLIND * 2);
+  assert.equal(Math.max(...Object.values(g.bets)), BLIND * 4);
+  assert.equal(raise(g, 0).bets[current(g)], BLIND * 8, "the minimum raise grows with them");
+});
+
+test("out of time: a free check, otherwise a fold", () => {
+  const g = deal("room", ["a", "b", "c"]);
+  const folded = timeout(g);
+  assert.deepEqual(folded.folded, ["a"]);
+  assert.equal(folded.last?.late, true);
+  const checked = timeout(call(call(g)));
+  assert.equal(checked.street, 1, "the big blind checks and the flop comes");
+  assert.deepEqual(checked.folded, []);
 });

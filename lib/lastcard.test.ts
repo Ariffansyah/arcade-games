@@ -15,10 +15,12 @@ import {
   deal,
   draw,
   faceOf,
+  join,
   leave,
   pass,
   play,
   playable,
+  timeout,
   topCard,
   type LastCard,
   type Rules,
@@ -455,4 +457,38 @@ test("play to the loser: going out is safe, and the last one holding cards loses
   assert.equal(two.winner, "a");
   assert.equal(two.loser, "c");
   assert.equal(two.scores.b, undefined);
+});
+
+test("a player the deal missed sits down with a fresh hand, and keeps theirs coming back", () => {
+  const g = deal("room", ["a", "b"]);
+  const joined = join(g, "c");
+  assert.deepEqual(joined.order, ["a", "b", "c"]);
+  assert.equal(joined.hands.c.length, HAND);
+  assert.equal(joined.deck.length, g.deck.length - HAND);
+  assert.equal(current(joined), current(g));
+  assert.equal(join(joined, "c"), joined, "already seated");
+
+  const left = leave(joined);
+  const back = join(left, current(joined));
+  assert.deepEqual(back.hands[current(joined)], joined.hands[current(joined)]);
+  assert.equal(join({ ...g, hands: { ...g.hands, c: [] } }, "c").order.length, 2, "out on Mercy");
+  assert.equal(join({ ...g, winner: "a" }, "c").order.length, 2, "not after the round");
+});
+
+test("running out of time draws and passes, or takes what is waiting", () => {
+  const g = rig(deal("room", ["a", "b"]), "a", [find("red", "5")], find("blue", "3"));
+  const late = timeout({ ...g, deck: [find("green", "9"), ...g.deck] });
+  assert.equal(late.hands.a.length, 2);
+  assert.equal(current(late), "b");
+  assert.equal(late.last?.late, true);
+
+  const fits = timeout({ ...g, deck: [find("blue", "9"), ...g.deck] });
+  assert.equal(fits.hands.a.length, 2, "a drawn card that fits is kept, not played");
+  assert.equal(current(fits), "b");
+
+  const wild = find("wild", "+4");
+  const pending = { ...g, pending: { by: "b", card: wild, bluff: false } };
+  const took = timeout(pending);
+  assert.equal(took.hands.a.length, 1 + 4);
+  assert.equal(took.pending, null);
 });

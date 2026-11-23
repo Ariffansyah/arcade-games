@@ -23,6 +23,7 @@ export type Rule =
 export type Rules = Partial<Record<Rule, boolean>>;
 
 export const HAND = 7;
+export const TURN_MS = 20_000;
 
 const TWICE = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "reverse", "+2"];
 
@@ -69,6 +70,8 @@ export type Move = {
   took?: number;
   caught?: boolean;
   out?: string;
+  // The clock ran out and the table moved for them.
+  late?: boolean;
 };
 
 // A wild draw card waits here until the next player takes it or calls the bluff.
@@ -458,6 +461,23 @@ export function draw(g: LastCard): LastCard {
   const moved = { ...next, last: { by: id, act: "draw" as const, card: got, to: id, took } };
   if (got < 0 || !playable(moved, got)) return spare({ ...moved, turn: seat(g, g.turn, 1) });
   return g.rules?.forcePlay ? play({ ...moved, drawn: got }, got) : spare({ ...moved, drawn: got });
+}
+
+// Out of time: take whatever is waiting on you, or draw and pass.
+export function timeout(g: LastCard): LastCard {
+  if (g.winner) return g;
+  const id = current(g);
+  let next = g.pending ? accept(g) : g.run || g.drawn >= 0 ? pass(g) : draw(g);
+  if (current(next) === id && next.drawn >= 0 && !next.winner) next = pass(next);
+  return next.last ? { ...next, last: { ...next.last, late: true } } : next;
+}
+
+// Someone the deal missed — they arrived late, or were skipped after dropping out — sits down at
+// the end of the order: with the hand they had, or a fresh one. Anyone safe or out on Mercy waits.
+export function join(g: LastCard, id: string): LastCard {
+  if (g.winner || g.order.includes(id) || g.hands[id]?.length === 0) return g;
+  const seated = { ...g, order: [...g.order, id] };
+  return g.hands[id] ? seated : take({ ...seated, hands: { ...g.hands, [id]: [] } }, id, HAND);
 }
 
 export const catchable = (g: LastCard) =>

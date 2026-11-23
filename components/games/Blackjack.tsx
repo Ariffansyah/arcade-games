@@ -2,25 +2,45 @@
 
 import { useEffect, useState } from "react";
 import {
+  MAX_BOXES,
   MIN_BET,
   STACK,
+  TURN_MS,
   bet,
+  blackjack,
+  box,
   canDouble,
+  canSplit,
+  canSurrender,
+  count,
   current,
   double,
   hit,
   natural,
   open,
+  payout,
+  sit,
+  split,
   stand,
+  surrender,
+  timeout,
   value,
   type Blackjack as Game,
+  type Box,
 } from "@/lib/blackjack.ts";
 import { useTable } from "@/lib/useTable";
+import { useTurnClock } from "@/lib/useTurnClock";
 import { sfx } from "@/lib/sfx";
 import type { GameProps } from "@/lib/useRoom";
 import { Fan, Seat } from "./CardTable";
+import Clock from "./Clock";
 
 const CHIPS = [10, 25, 100, 500];
+
+const total = (cards: number[]) => {
+  const { total, soft } = count(cards);
+  return soft && total < 21 ? `Soft ${total}` : String(total);
+};
 
 export default function Blackjack({ code, players, me }: GameProps) {
   const [table, send] = useTable<Game>(`blackjack:${code}`, me.id);
@@ -31,8 +51,10 @@ export default function Blackjack({ code, players, me }: GameProps) {
   const up = table && table.phase !== "done" ? current(table) : "";
   const myTurn = up === me.id;
   const upGone = !!up && !players.some((p) => p.id === up);
+  const seated = !!table && table.order.includes(me.id);
 
-  const dealt = (table?.dealer.length ?? 0) + Object.values(table?.hands ?? {}).flat().length;
+  const dealt =
+    (table?.dealer.length ?? 0) + (table?.boxes ?? []).reduce((n, b) => n + b.cards.length, 0);
   useEffect(() => {
     if (dealt) sfx.card();
   }, [dealt]);
@@ -40,6 +62,19 @@ export default function Blackjack({ code, players, me }: GameProps) {
   useEffect(() => {
     if (mine > 0) sfx.win();
   }, [mine, table?.round]);
+
+  // Arriving while bets are still open — or just after the table opened without you — takes a seat.
+  const missed = !!table && table.phase === "bet" && !seated && players.some((p) => p.id === me.id);
+  useEffect(() => {
+    if (missed) send(sit(table, me.id));
+  }, [missed, table, me.id, send]);
+
+  const left = useTurnClock(
+    table,
+    TURN_MS,
+    table && table.phase !== "done" && seated ? () => send(timeout(table)) : null,
+    myTurn ? 0 : 2500
+  );
 
   const next = () =>
     send(
@@ -58,7 +93,8 @@ export default function Blackjack({ code, players, me }: GameProps) {
           <Fan cards={[12, 24]} size="clamp(8px, 2.4vw, 13px)" />
           <p className="text-base text-zinc-300">
             Blackjack against the house. Get closer to 21 than the dealer without going over.
-            Picture cards count 10, aces 1 or 11. Everyone starts with {STACK} chips.
+            Picture cards count 10, aces 1 or 11. Split pairs, double down, or surrender half your
+            bet. Everyone starts with {STACK} chips and gets {TURN_MS / 1000} seconds a turn.
           </p>
           {isHost ? (
             <button onClick={next} className="btn-arcade play-pulse rounded-sm px-6 py-3">
@@ -75,24 +111,32 @@ export default function Blackjack({ code, players, me }: GameProps) {
 
   const done = table.phase === "done";
   const playing = table.phase === "play";
-  const seated = table.order.includes(me.id);
   const chips = table.chips[me.id] ?? 0;
   const dealer = value(table.dealer);
+  const at = box(table);
+  const seatedCount = table.boxes.length;
 
-  const result = (id: string) => {
-    const paid = table.paid?.[id];
-    if (paid === undefined) return null;
-    const hand = table.hands[id] ?? [];
-    return paid > 0 ? (
-      <span className="neon-green">
-        {natural(hand) ? "Blackjack! " : ""}+{paid}
-      </span>
-    ) : paid === 0 ? (
-      <span className="text-zinc-200">Push</span>
-    ) : (
-      <span className="text-red-400">
-        {value(hand) > 21 ? "Bust " : ""}
-        {paid}
+  const outcome = (b: Box) => {
+    if (!done) return null;
+    const net = payout(table, b) - b.bet;
+    const label = b.surrendered
+      ? "Surrendered"
+      : blackjack(b) && net > 0
+        ? "Blackjack!"
+        : value(b.cards) > 21
+          ? "Bust"
+          : net > 0
+            ? "Win"
+            : net === 0
+              ? "Push"
+              : "Lose";
+    return (
+      <span
+        className={`menu-in ${net > 0 ? "neon-green" : net === 0 ? "text-zinc-200" : "text-red-400"}`}
+        // Held back until the dealer's last card has landed.
+        style={{ animationDelay: `${Math.max(0, table.dealer.length - 1) * 500}ms` }}
+      >
+        {label} {net > 0 ? `+${net}` : net || ""}
       </span>
     );
   };
@@ -100,7 +144,7 @@ export default function Blackjack({ code, players, me }: GameProps) {
   const last = table.last;
   const lastLine = !last
     ? ""
-    : `${name(last.by)} ${
+    : `${name(last.by)} ${last.late ? "ran out of time and " : ""}${
         last.act === "bet"
           ? `bet ${last.amount}`
           : last.act === "sit"
@@ -109,7 +153,11 @@ export default function Blackjack({ code, players, me }: GameProps) {
               ? "hit"
               : last.act === "double"
                 ? "doubled down"
-                : `stood on ${value(table.hands[last.by] ?? [])}`
+                : last.act === "split"
+                  ? "split the pair"
+                  : last.act === "surrender"
+                    ? "surrendered"
+                    : "stood"
       }`;
 
   const status = done
@@ -120,17 +168,21 @@ export default function Blackjack({ code, players, me }: GameProps) {
       : mine > 0
         ? `You win ${mine}!`
         : mine === 0
-          ? "Push — your bet comes back."
+          ? "Even — your bets come back."
           : `You lose ${-mine}.`
     : table.phase === "bet"
       ? myTurn
         ? "Place your bet."
         : `${name(up)} is betting…`
-      : myTurn
-        ? `You have ${value(table.hands[me.id])}. Hit or stand?`
+      : myTurn && at
+        ? `You have ${total(at.cards)}${
+            table.boxes.filter((b) => b.by === me.id).length > 1 ? " on this hand" : ""
+          }. Hit or stand?`
         : `${name(up)} is playing…`;
 
   const pending = Math.min(stake, chips);
+  // Cards go round the table one at a time, the dealer's after the last player's.
+  const dealSlot = (i: number) => i * 110;
 
   return (
     <div className="uno-stage absolute inset-0 flex flex-col items-center overflow-x-hidden overflow-y-auto">
@@ -140,22 +192,35 @@ export default function Blackjack({ code, players, me }: GameProps) {
           <Fan
             cards={playing ? [table.dealer[0], undefined] : table.dealer}
             size="clamp(7px, 1.9vmin, 13px)"
+            round={table.round}
+            from="10vh"
+            delay={dealSlot(seatedCount)}
+            step={(seatedCount + 1) * 110}
+            later={500}
           />
         )}
-        {done && table.dealer.length > 0 && (
+        {table.dealer.length > 0 && (
           <span className="pixel text-[0.8rem] text-zinc-200">
-            {natural(table.dealer) ? "Blackjack" : dealer > 21 ? `Bust with ${dealer}` : dealer}
+            {playing
+              ? `Showing ${total([table.dealer[0]])}`
+              : natural(table.dealer)
+                ? "Blackjack"
+                : dealer > 21
+                  ? `Bust with ${dealer}`
+                  : total(table.dealer)}
           </span>
         )}
       </div>
 
-      <div className="mx-auto my-auto flex w-[min(94%,820px)] flex-col items-center gap-4 rounded-[50%/38%] border-4 border-emerald-500/50 bg-[radial-gradient(ellipse_at_center,#0f5132,#06281a_72%)] px-4 py-6 shadow-[0_0_40px_rgba(57,255,136,0.2),inset_0_0_60px_rgba(0,0,0,0.6)]">
+      <div className="mx-auto my-auto flex w-[min(94%,860px)] flex-col items-center gap-4 rounded-[50%/38%] border-4 border-emerald-500/50 bg-[radial-gradient(ellipse_at_center,#0f5132,#06281a_72%)] px-4 py-6 shadow-[0_0_40px_rgba(57,255,136,0.2),inset_0_0_60px_rgba(0,0,0,0.6)]">
         <span className="pixel text-center text-[0.65rem] text-emerald-300/80">
-          Blackjack pays 3 to 2 · Dealer stands on 17
+          Blackjack pays 3 to 2 · Dealer stands on 17 · Split up to {MAX_BOXES} hands · Surrender
+          pays half
         </span>
         <div className="flex flex-wrap items-start justify-center gap-x-6 gap-y-4">
           {table.order.map((id, i) => {
-            const hand = table.hands[id];
+            const boxes = table.boxes.filter((b) => b.by === id);
+            const sittingOut = table.phase !== "bet" && !table.bets[id];
             return (
               <Seat
                 key={id}
@@ -163,29 +228,62 @@ export default function Blackjack({ code, players, me }: GameProps) {
                 seat={i}
                 chips={table.chips[id]}
                 hot={up === id}
-                dim={table.phase !== "bet" && !table.bets[id]}
+                dim={sittingOut}
+                won={(table.paid?.[id] ?? 0) > 0}
+                clock={left / TURN_MS}
               >
-                {hand && (
-                  <Fan
-                    cards={hand}
-                    size={id === me.id ? "clamp(7px, 1.9vmin, 13px)" : "clamp(5px, 1.4vmin, 9px)"}
-                  />
-                )}
+                <div className="flex flex-wrap items-start justify-center gap-3">
+                  {boxes.map((b, k) => {
+                    const turn = at === b;
+                    return (
+                      <div
+                        key={k}
+                        className={`flex flex-col items-center gap-1 rounded-md p-1 ${
+                          turn && boxes.length > 1 ? "ring-2 ring-emerald-400/70" : ""
+                        }`}
+                      >
+                        <Fan
+                          cards={b.cards}
+                          size={
+                            id === me.id ? "clamp(7px, 1.9vmin, 13px)" : "clamp(5px, 1.4vmin, 9px)"
+                          }
+                          round={`${table.round}-${k}`}
+                          from={id === me.id ? "-20vh" : "-25vh"}
+                          delay={dealSlot(table.boxes.indexOf(b))}
+                          step={(seatedCount + 1) * 110}
+                        />
+                        <div className="flex min-h-5 flex-wrap items-center justify-center gap-1.5 text-xs">
+                          <span className="count-badge pixel h-5 min-w-5 text-[0.7rem]">
+                            {blackjack(b) ? "BJ" : total(b.cards)}
+                          </span>
+                          <span
+                            key={b.bet}
+                            className="chip-toss rounded-sm bg-[#06030d]/70 px-1.5 py-0.5 text-amber-300"
+                          >
+                            {b.bet}
+                            {b.doubled ? " ×2" : ""}
+                          </span>
+                          {outcome(b)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
                 <div className="flex min-h-5 flex-wrap items-center justify-center gap-1.5 text-xs">
-                  {hand && (
-                    <span className="count-badge pixel h-5 min-w-5 text-[0.7rem]">
-                      {value(hand)}
-                    </span>
-                  )}
-                  {!!table.bets[id] && (
-                    <span className="rounded-sm bg-[#06030d]/70 px-1.5 py-0.5 text-amber-300">
+                  {table.phase === "bet" && !!table.bets[id] && (
+                    <span
+                      key={table.bets[id]}
+                      className="chip-toss rounded-sm bg-[#06030d]/70 px-1.5 py-0.5 text-amber-300"
+                    >
                       {table.bets[id]}
                     </span>
                   )}
-                  {table.phase !== "bet" && !table.bets[id] && (
-                    <span className="text-zinc-400">Sitting out</span>
+                  {sittingOut && <span className="text-zinc-400">Sitting out</span>}
+                  {done && boxes.length > 1 && table.paid?.[id] !== undefined && (
+                    <span className="text-zinc-300">
+                      Total {table.paid[id] > 0 ? `+${table.paid[id]}` : table.paid[id]}
+                    </span>
                   )}
-                  {result(id)}
                 </div>
               </Seat>
             );
@@ -194,6 +292,7 @@ export default function Blackjack({ code, players, me }: GameProps) {
       </div>
 
       <div className="flex flex-col items-center gap-2 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        {!done && <Clock left={left} total={TURN_MS} mine={myTurn} />}
         <p
           role="status"
           className={`text-center text-sm sm:text-base ${myTurn || mine > 0 ? "neon-green" : "text-zinc-200"}`}
@@ -255,7 +354,7 @@ export default function Blackjack({ code, players, me }: GameProps) {
         )}
 
         {myTurn && playing && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             <button
               onClick={() => send(hit(table))}
               className="btn-arcade rounded-sm px-4 py-2 text-[0.88rem]"
@@ -274,6 +373,22 @@ export default function Blackjack({ code, players, me }: GameProps) {
                 className="btn-ghost rounded-sm px-4 py-2 text-[0.88rem] text-amber-300"
               >
                 Double
+              </button>
+            )}
+            {canSplit(table) && (
+              <button
+                onClick={() => send(split(table))}
+                className="btn-ghost rounded-sm px-4 py-2 text-[0.88rem] text-amber-300"
+              >
+                Split
+              </button>
+            )}
+            {canSurrender(table) && (
+              <button
+                onClick={() => send(surrender(table))}
+                className="btn-ghost btn-danger rounded-sm px-4 py-2 text-[0.88rem]"
+              >
+                Surrender
               </button>
             )}
           </div>

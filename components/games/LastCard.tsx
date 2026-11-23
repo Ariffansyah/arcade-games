@@ -5,6 +5,7 @@ import {
   COLOURS,
   DARK,
   MERCY,
+  TURN_MS,
   accept,
   backOf,
   callLast,
@@ -15,11 +16,14 @@ import {
   deal,
   draw,
   faceOf,
+  join,
   leave,
   palette,
   pass,
   play,
   playable,
+  points,
+  timeout,
   type Card,
   type Colour,
   type LastCard as Game,
@@ -28,8 +32,10 @@ import {
   type Rules,
 } from "@/lib/lastcard.ts";
 import { useTable } from "@/lib/useTable";
+import { useTurnClock } from "@/lib/useTurnClock";
 import { sfx } from "@/lib/sfx";
 import type { GameProps } from "@/lib/useRoom";
+import Clock from "./Clock";
 
 const HUE: Record<Colour | "wild", string> = {
   red: "#ff2e63",
@@ -349,6 +355,7 @@ function Tag({
   hot,
   won,
   compact = false,
+  clock,
 }: {
   label: string;
   seat: number;
@@ -357,6 +364,7 @@ function Tag({
   hot: boolean;
   won: boolean;
   compact?: boolean;
+  clock?: number;
 }) {
   return (
     <div className={`flex items-end ${compact ? "gap-0.5" : "gap-1.5"} ${won ? "flash-win" : ""}`}>
@@ -377,6 +385,16 @@ function Tag({
               : "border-zinc-200/70"
           }`}
         />
+        {hot && clock !== undefined && (
+          <span aria-hidden className="mt-1 h-1 w-full overflow-hidden rounded-sm bg-zinc-800">
+            <span
+              className={`block h-full transition-[width] duration-200 ease-linear ${
+                clock <= 0.25 ? "bg-red-500" : "bg-emerald-400"
+              }`}
+              style={{ width: `${clock * 100}%` }}
+            />
+          </span>
+        )}
         {compact && (
           <span className="count-badge pixel absolute -right-3 -bottom-1 h-5 min-w-5 text-[0.72rem]">
             {count}
@@ -435,6 +453,7 @@ export default function LastCard({ code, players, me }: GameProps) {
   // The hand you called on, so the call lapses once that hand changes.
   const [calling, setCalling] = useState("");
   const [swapping, setSwapping] = useState(-1);
+  const [log, setLog] = useState({ key: "", lines: [] as string[] });
   const portrait = usePortrait();
 
   const isHost = players[0]?.id === me.id;
@@ -453,6 +472,26 @@ export default function LastCard({ code, players, me }: GameProps) {
   useEffect(() => {
     if (table?.winner) sfx.win();
   }, [table?.winner]);
+
+  // Presence can lag a few seconds behind someone walking in, so a deal can miss them. Whoever
+  // isn't at the table deals themselves in rather than sitting it out.
+  const missed =
+    !!table &&
+    !table.winner &&
+    !table.order.includes(me.id) &&
+    table.hands[me.id]?.length !== 0 &&
+    players.some((p) => p.id === me.id);
+  useEffect(() => {
+    if (missed) send(join(table, me.id));
+  }, [missed, table, me.id, send]);
+
+  const seated = !!table && table.order.includes(me.id);
+  const left = useTurnClock(
+    table,
+    TURN_MS,
+    table && !table.winner && seated ? () => send(timeout(table)) : null,
+    myTurn ? 0 : 2500
+  );
 
   const sortKey = (card: number) => {
     const c = faceOf(table!, card);
@@ -684,7 +723,9 @@ export default function LastCard({ code, players, me }: GameProps) {
                   : `${name(last.by)} challenged and was wrong — picks up ${last.took}`
                 : `${name(last.by)} passed`;
   const lastNews = [
-    lastLine,
+    last?.late
+      ? `${name(last.by)} ran out of time — ${lastLine.replace(`${name(last.by)} `, "")}`
+      : lastLine,
     last?.out && `${name(last.out)} hit ${MERCY} cards and is out!`,
     last?.act === "play" &&
       !table.winner &&
@@ -693,6 +734,10 @@ export default function LastCard({ code, players, me }: GameProps) {
   ]
     .filter(Boolean)
     .join(". ");
+  // The table only carries the latest move, so each screen keeps its own short history of them.
+  const newsKey = `${table.round}-${table.pile.length}-${table.deck.length}-${table.turn}-${held}-${last?.act}`;
+  if (lastNews && log.key !== newsKey)
+    setLog({ key: newsKey, lines: [lastNews, ...log.lines].slice(0, 6) });
 
   const drawer = last?.to ?? "";
   const flying = drawer && last?.took ? Math.min(last.took, 6) : 0;
@@ -736,7 +781,24 @@ export default function LastCard({ code, players, me }: GameProps) {
             {live.map((r) => r.label).join(" · ")}
           </span>
         )}
+        <span className="rounded-sm bg-[#06030d]/70 px-2 py-1 text-xs text-zinc-400">
+          {table.deck.length} in the deck · play goes{" "}
+          {table.dir === 1 ? "clockwise" : "anticlockwise"}
+        </span>
       </div>
+
+      {log.lines.length > 1 && (
+        <ol
+          aria-label="Recent moves"
+          className="absolute top-14 right-3 z-10 hidden w-60 flex-col gap-0.5 rounded-sm bg-[#06030d]/70 px-2.5 py-2 text-xs md:flex"
+        >
+          {log.lines.map((line, i) => (
+            <li key={`${log.key}-${i}`} className={i ? "text-zinc-500" : "text-zinc-200"}>
+              {line}
+            </li>
+          ))}
+        </ol>
+      )}
 
       <div
         className="absolute top-[50%] left-1/2 h-[min(60vmin,540px)] w-[min(60vmin,540px)] -translate-x-1/2 -translate-y-1/2"
@@ -855,6 +917,7 @@ export default function LastCard({ code, players, me }: GameProps) {
               hot={up === id}
               won={table.winner === id}
               compact={row}
+              clock={left / TURN_MS}
             />
             <div
               className={`flex ${row ? "text-[3px]" : "text-[length:clamp(3.6px,1.15vmin,8px)]"}`}
@@ -907,9 +970,33 @@ export default function LastCard({ code, players, me }: GameProps) {
                     : "is out of cards!"
                 }`}
           </span>
-          <span className="text-base text-zinc-300">
-            {name(table.winner)} has {table.scores[table.winner] ?? 0} points.
-          </span>
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-zinc-500">
+              <tr>
+                <th className="py-1 font-normal">Player</th>
+                <th className="py-1 text-right font-normal">Left holding</th>
+                <th className="py-1 text-right font-normal">Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.keys(table.hands)
+                .sort((a, b) => (table.scores[b] ?? 0) - (table.scores[a] ?? 0))
+                .map((id) => {
+                  const kept = table.hands[id];
+                  return (
+                    <tr key={id} className="border-t border-zinc-800">
+                      <td className="max-w-[8rem] truncate py-1 text-zinc-200">{name(id)}</td>
+                      <td className="py-1 text-right text-zinc-400">
+                        {kept.length
+                          ? `${kept.length} cards, ${kept.reduce((sum, c) => sum + points(table, c), 0)} pts`
+                          : "—"}
+                      </td>
+                      <td className="neon-green py-1 text-right">{table.scores[id] ?? 0}</td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
           {isHost ? (
             <>
               {modePicker}
@@ -940,6 +1027,7 @@ export default function LastCard({ code, players, me }: GameProps) {
               score={table.scores[me.id] ?? 0}
               hot={myTurn}
               won={table.winner === me.id}
+              clock={left / TURN_MS}
             />
           ) : (
             <span className="text-sm text-zinc-400">
@@ -951,6 +1039,7 @@ export default function LastCard({ code, players, me }: GameProps) {
             </span>
           )}
           <div className="flex min-w-0 flex-1 flex-col items-center text-center">
+            {!table.winner && <Clock left={left} total={TURN_MS} mine={myTurn} />}
             <p
               role="status"
               className={`text-sm sm:text-base ${myTurn ? "neon-green" : "text-zinc-200"}`}
