@@ -445,7 +445,7 @@ const usePortrait = () =>
 const TILT = 55;
 const FORESHORTEN = Math.cos((TILT * Math.PI) / 180);
 
-export default function LastCard({ code, players, me }: GameProps) {
+export default function LastCard({ code, players, me, name }: GameProps) {
   const [table, send] = useTable<Game>(`lastcard:${code}`, me.id);
   const [picking, setPicking] = useState(-1);
   const [mode, setMode] = useState<Mode | null>(null);
@@ -457,7 +457,6 @@ export default function LastCard({ code, players, me }: GameProps) {
   const portrait = usePortrait();
 
   const isHost = players[0]?.id === me.id;
-  const name = (id?: string) => players.find((p) => p.id === id)?.name ?? "someone";
   const up = table && !table.winner ? current(table) : "";
   const myTurn = up === me.id;
   const upGone = !!up && !players.some((p) => p.id === up);
@@ -711,17 +710,21 @@ export default function LastCard({ code, players, me }: GameProps) {
         }`
       : last.act === "draw"
         ? `${name(last.by)} drew ${last.took === 1 ? "a card" : `${last.took} cards`}`
-        : last.act === "uno"
-          ? `${name(last.by)} called last card!`
-          : last.act === "catch"
-            ? `${name(last.by)} caught ${name(last.to)} on one card — picks up ${last.took}`
-            : last.act === "accept"
-              ? `${name(last.by)} picked up ${last.took}`
-              : last.act === "challenge"
-                ? last.caught
-                  ? `${name(last.by)} called the bluff! The player who laid it picks up ${last.took}`
-                  : `${name(last.by)} challenged and was wrong — picks up ${last.took}`
-                : `${name(last.by)} passed`;
+        : last.act === "join"
+          ? last.took
+            ? `${name(last.by)} sat down and was dealt ${last.took}`
+            : `${name(last.by)} is back at the table`
+          : last.act === "uno"
+            ? `${name(last.by)} called last card!`
+            : last.act === "catch"
+              ? `${name(last.by)} caught ${name(last.to)} on one card — picks up ${last.took}`
+              : last.act === "accept"
+                ? `${name(last.by)} picked up ${last.took}`
+                : last.act === "challenge"
+                  ? last.caught
+                    ? `${name(last.by)} called the bluff! The player who laid it picks up ${last.took}`
+                    : `${name(last.by)} challenged and was wrong — picks up ${last.took}`
+                  : `${name(last.by)} passed`;
   const lastNews = [
     last?.late
       ? `${name(last.by)} ran out of time — ${lastLine.replace(`${name(last.by)} `, "")}`

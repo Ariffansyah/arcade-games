@@ -37,7 +37,7 @@ type Table = {
 
 const normalize = (t: Table): Table => ({ ...t, step: t.step ?? 0, hits: t.hits ?? 0 });
 
-export default function Mayday({ code, players, me }: GameProps) {
+export default function Mayday({ code, players, me, name }: GameProps) {
   const [table, setTable] = useState<Table | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
@@ -113,7 +113,6 @@ export default function Mayday({ code, players, me }: GameProps) {
     });
   };
 
-  const name = (id: string) => players.find((p) => p.id === id)?.name ?? "someone";
 
   return (
     <div className="flex w-full max-w-3xl flex-col items-center gap-5">

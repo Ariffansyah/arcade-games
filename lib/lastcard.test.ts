@@ -466,6 +466,7 @@ test("a player the deal missed sits down with a fresh hand, and keeps theirs com
   assert.equal(joined.hands.c.length, HAND);
   assert.equal(joined.deck.length, g.deck.length - HAND);
   assert.equal(current(joined), current(g));
+  assert.deepEqual(joined.last, { by: "c", act: "join", card: -1, to: "c", took: HAND });
   assert.equal(join(joined, "c"), joined, "already seated");
 
   const left = leave(joined);

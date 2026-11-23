@@ -17,7 +17,7 @@ type Table = {
 
 type Handin = { from: string; answer: string };
 
-export default function SamePage({ code, players, me }: GameProps) {
+export default function SamePage({ code, players, me, name }: GameProps) {
   const [table, setTable] = useState<Table | null>(null);
   const [answer, setAnswer] = useState("");
 
@@ -91,7 +91,6 @@ export default function SamePage({ code, players, me }: GameProps) {
     setLocked(false);
   };
 
-  const name = (id: string) => players.find((p) => p.id === id)?.name ?? "someone";
   const pack = table?.phase === "reveal" ? groups(table.answers) : [];
   const biggest = pack[0] ?? [];
   const matched = table?.phase === "reveal" ? together(table.answers) : 0;

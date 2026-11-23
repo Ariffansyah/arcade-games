@@ -64,7 +64,7 @@ export const FLIP = shuffle(
 
 export type Move = {
   by: string;
-  act: "play" | "draw" | "pass" | "accept" | "challenge" | "uno" | "catch";
+  act: "play" | "draw" | "pass" | "accept" | "challenge" | "uno" | "catch" | "join";
   card: number;
   to?: string;
   took?: number;
@@ -476,8 +476,13 @@ export function timeout(g: LastCard): LastCard {
 // the end of the order: with the hand they had, or a fresh one. Anyone safe or out on Mercy waits.
 export function join(g: LastCard, id: string): LastCard {
   if (g.winner || g.order.includes(id) || g.hands[id]?.length === 0) return g;
-  const seated = { ...g, order: [...g.order, id] };
-  return g.hands[id] ? seated : take({ ...seated, hands: { ...g.hands, [id]: [] } }, id, HAND);
+  const back = !!g.hands[id];
+  const seated: LastCard = {
+    ...g,
+    order: [...g.order, id],
+    last: { by: id, act: "join", card: -1, to: id, took: back ? 0 : HAND },
+  };
+  return back ? seated : take({ ...seated, hands: { ...g.hands, [id]: [] } }, id, HAND);
 }
 
 export const catchable = (g: LastCard) =>

@@ -11,7 +11,7 @@ const FRAME = 300;
 
 type Act = { from: string; ok: boolean };
 
-export default function Chain({ code, players, me }: GameProps) {
+export default function Chain({ code, players, me, name }: GameProps) {
   const [table, setTable] = useState<Run | null>(null);
 
   const [play, setPlay] = useState({ key: "", step: -1 });
@@ -86,7 +86,6 @@ export default function Chain({ code, players, me }: GameProps) {
 
   const start = () =>
     send(newChain(`${code}-${Date.now()}`, players.map((p) => p.id), (table?.round ?? 0) + 1));
-  const name = (id: string) => players.find((p) => p.id === id)?.name ?? "someone";
 
   return (
     <div className="flex w-full max-w-2xl flex-col items-center gap-5">

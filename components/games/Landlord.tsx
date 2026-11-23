@@ -331,7 +331,7 @@ const spot = (i: number, seat: number) => {
   );
 };
 
-export default function Landlord({ code, players, me }: GameProps) {
+export default function Landlord({ code, players, me, name }: GameProps) {
   const [saved, send] = useTable<Game>(`landlord:${code}`, me.id);
   // A table from before card decks existed cannot be played on; start a fresh one.
   const table = saved?.decks ? saved : null;
@@ -666,7 +666,6 @@ export default function Landlord({ code, players, me }: GameProps) {
   useEffect(() => view.current?.select(selected), [selected]);
 
   const order = table?.order ?? [];
-  const name = (id?: string) => players.find((p) => p.id === id)?.name ?? "someone";
   const say = (line: string) => order.reduce((text, id) => text.replaceAll(id, name(id)), line);
   const start = () =>
     send(

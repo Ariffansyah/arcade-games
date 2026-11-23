@@ -15,7 +15,7 @@ type Table = {
 
 type Act = { from: string; pick?: number };
 
-export default function TwoThirds({ code, players, me }: GameProps) {
+export default function TwoThirds({ code, players, me, name }: GameProps) {
   const [table, setTable] = useState<Table | null>(null);
   const [pick, setPick] = useState(33);
   const [locked, setLocked] = useState(false);
@@ -88,7 +88,6 @@ export default function TwoThirds({ code, players, me }: GameProps) {
   };
 
   const result = table && table.phase === "reveal" ? winners(table.picks) : null;
-  const name = (id: string) => players.find((p) => p.id === id)?.name ?? "someone";
   const shown = table ? Object.keys(table.picks).length : 0;
 
   return (

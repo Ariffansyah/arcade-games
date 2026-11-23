@@ -42,12 +42,11 @@ const total = (cards: number[]) => {
   return soft && total < 21 ? `Soft ${total}` : String(total);
 };
 
-export default function Blackjack({ code, players, me }: GameProps) {
+export default function Blackjack({ code, players, me, name }: GameProps) {
   const [table, send] = useTable<Game>(`blackjack:${code}`, me.id);
   const [stake, setStake] = useState(0);
 
   const isHost = players[0]?.id === me.id;
-  const name = (id?: string) => players.find((p) => p.id === id)?.name ?? "someone";
   const up = table && table.phase !== "done" ? current(table) : "";
   const myTurn = up === me.id;
   const upGone = !!up && !players.some((p) => p.id === up);

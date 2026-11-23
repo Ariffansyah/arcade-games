@@ -13,6 +13,7 @@ export type GameProps = {
   slot: 0 | 1 | 2;
   players: Player[];
   me: Player;
+  name: (id?: string) => string;
 };
 
 export type RoomState = {
@@ -27,6 +28,8 @@ export type RoomState = {
   setGame: (game: string | null) => void;
 
   rename: (name: string) => void;
+
+  name: (id?: string) => string;
 };
 
 const randomName = () => `Player-${Math.random().toString(36).slice(2, 6)}`;
@@ -47,6 +50,11 @@ export function useRoom(code: string, name?: string): RoomState {
     typeof window === "undefined" ? null : session.get<string>(`arcade:game:${code}`)
   );
   const [connected, setConnected] = useState(false);
+  // Everyone ever seen in this room, so a player whose phone drops off for a moment, or who has
+  // left, keeps their name on the table instead of turning into "someone".
+  const [known, setKnown] = useState<Record<string, string>>(() =>
+    typeof window === "undefined" ? {} : (session.get(`arcade:names:${code}`) ?? {})
+  );
   const gameRef = useRef(game);
 
   useEffect(() => {
@@ -66,6 +74,11 @@ export function useRoom(code: string, name?: string): RoomState {
         .map((entries) => entries[0])
         .filter(Boolean);
       setPlayers(sortPlayers(list));
+      setKnown((names) => {
+        const next = { ...names, ...Object.fromEntries(list.map((p) => [p.id, p.name])) };
+        session.set(`arcade:names:${code}`, next);
+        return next;
+      });
     })
       .on("broadcast", { event: "game" }, ({ payload }) => setGameState(payload.game))
       // Whoever just arrived or reloaded asks which cabinet the room is on.
@@ -104,5 +117,8 @@ export function useRoom(code: string, name?: string): RoomState {
   const index = players.findIndex((p) => p.id === me.id);
   const slot = index === 0 ? 1 : index === 1 ? 2 : 0;
 
-  return { players, connected, me, slot, game, setGame, rename };
+  const nameOf = (id?: string) =>
+    players.find((p) => p.id === id)?.name ?? known[id ?? ""] ?? "someone";
+
+  return { players, connected, me, slot, game, setGame, rename, name: nameOf };
 }

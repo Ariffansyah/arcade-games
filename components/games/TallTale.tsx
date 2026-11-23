@@ -13,7 +13,7 @@ type Table = {
   total: number;
 };
 
-export default function TallTale({ code, players, me }: GameProps) {
+export default function TallTale({ code, players, me, name }: GameProps) {
   const [table, setTable] = useState<Table | null>(null);
   const [draft, setDraft] = useState("");
 
@@ -53,7 +53,6 @@ export default function TallTale({ code, players, me }: GameProps) {
       total: lineCount(players.length),
     });
 
-  const name = (id: string) => players.find((p) => p.id === id)?.name ?? "someone";
 
   return (
     <div className="flex w-full max-w-2xl flex-col items-center gap-5">

@@ -20,7 +20,7 @@ type Table = {
 
 type Guess = { from: string; at: number };
 
-export default function Dial({ code, players, me }: GameProps) {
+export default function Dial({ code, players, me, name }: GameProps) {
   const [table, setTable] = useState<Table | null>(null);
   const [guesses, setGuesses] = useState<Record<string, number>>({});
   const [slider, setSlider] = useState(50);
@@ -92,7 +92,6 @@ export default function Dial({ code, players, me }: GameProps) {
       guesses: {},
     });
 
-  const name = (id: string) => players.find((p) => p.id === id)?.name ?? "someone";
   const mine = guesses[me.id];
   const marks = table?.phase === "reveal" ? Object.entries(table.guesses) : [];
 

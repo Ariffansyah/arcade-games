@@ -7,7 +7,7 @@ import type { GameProps } from "@/lib/useRoom";
 
 type Answer = { from: string; name: string; word: string };
 
-export default function Fuse({ code, players, me }: GameProps) {
+export default function Fuse({ code, players, me, name }: GameProps) {
   const [table, setTable] = useState<Round | null>(null);
   const [log, setLog] = useState<Answer[]>([]);
   const [text, setText] = useState("");
@@ -81,7 +81,6 @@ export default function Fuse({ code, players, me }: GameProps) {
     if (isHost) send(survive(table, answer.word));
   };
 
-  const name = (id: string) => players.find((p) => p.id === id)?.name ?? "someone";
 
   return (
     <div className="flex w-full max-w-2xl flex-col items-center gap-5">

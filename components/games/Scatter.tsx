@@ -19,7 +19,7 @@ type Handin = { from: string; answers: string[] };
 
 const blank = () => Array<string>(PROMPT_COUNT).fill("");
 
-export default function Scatter({ code, players, me }: GameProps) {
+export default function Scatter({ code, players, me, name }: GameProps) {
   const [table, setTable] = useState<Table | null>(null);
   const [answers, setAnswers] = useState<string[]>(blank);
   const [handed, setHanded] = useState(false);
@@ -115,7 +115,6 @@ export default function Scatter({ code, players, me }: GameProps) {
   const write = (slot: number, value: string) =>
     setAnswers((all) => all.map((a, i) => (i === slot ? value : a)));
 
-  const name = (id: string) => players.find((p) => p.id === id)?.name ?? "someone";
 
   return (
     <div className="flex w-full max-w-2xl flex-col items-center gap-5">

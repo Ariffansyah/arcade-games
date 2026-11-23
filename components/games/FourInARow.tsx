@@ -70,7 +70,7 @@ function buildBoard() {
   return group;
 }
 
-export default function FourInARow({ code, players, me }: GameProps) {
+export default function FourInARow({ code, players, me, name }: GameProps) {
   const [table, send] = useTable<Table>(`four:${code}`, me.id);
   const mount = useRef<HTMLDivElement>(null);
   const view = useRef<{ sync: (t: Table | null) => void } | null>(null);
@@ -208,7 +208,6 @@ export default function FourInARow({ code, players, me }: GameProps) {
 
   useEffect(() => view.current?.sync(table), [table]);
 
-  const name = (id?: string) => players.find((p) => p.id === id)?.name ?? "someone";
   const seats: [string, string] = [players[0]?.id ?? "", players[1]?.id ?? ""];
   const isHost = players[0]?.id === me.id;
   const gone = !!table && table.seats.some((id) => !players.some((p) => p.id === id));

@@ -75,7 +75,7 @@ const BUTTON_FACE: Record<string, string> = {
   white: "bg-zinc-200 text-zinc-900",
 };
 
-export default function BombSquad({ code, players, me }: GameProps) {
+export default function BombSquad({ code, players, me, name }: GameProps) {
   const [table, setTable] = useState<Table | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -172,7 +172,6 @@ export default function BombSquad({ code, players, me }: GameProps) {
     send({ ...table, holderId: id });
   };
 
-  const name = (id: string) => players.find((p) => p.id === id)?.name ?? "someone";
 
   return (
     <div className="flex w-full max-w-3xl flex-col items-center gap-5">

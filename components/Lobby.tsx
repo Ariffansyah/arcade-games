@@ -293,7 +293,7 @@ function PauseMenu({
 }
 
 export default function Lobby({ code }: { code: string }) {
-  const { players, connected, me, slot, game, setGame, rename } = useRoom(code);
+  const { players, connected, me, slot, game, setGame, rename, name } = useRoom(code);
   const hydrated = useHydrated();
   const [options, setOptions] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -411,7 +411,7 @@ export default function Lobby({ code }: { code: string }) {
           </p>
         )}
         <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center-safe overflow-x-hidden overflow-y-auto px-3 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5">
-          <Game code={code} slot={slot} players={players} me={me} />
+          <Game code={code} slot={slot} players={players} me={me} name={name} />
         </div>
         <Loading key={current.id} game={current} />
         {paused && (
