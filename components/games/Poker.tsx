@@ -26,10 +26,21 @@ import { useTable } from "@/lib/useTable";
 import { useTurnClock } from "@/lib/useTurnClock";
 import { sfx } from "@/lib/sfx";
 import type { GameProps } from "@/lib/useRoom";
-import { Fan, GLOW, PlayingCard, Seat } from "./CardTable";
+import Banner from "./Banner";
+import { Fan, GLOW, PlayingCard, Seat, type Say } from "./CardTable";
 import Clock from "./Clock";
 
 const STREETS = ["Preflop", "Flop", "Turn", "River"];
+
+const SAYS: Record<NonNullable<Game["last"]>["act"], [string, Say["tone"]]> = {
+  fold: ["Fold", "bad"],
+  check: ["Check", "plain"],
+  call: ["Call", "chip"],
+  bet: ["Bet", "chip"],
+  raise: ["Raise to", "chip"],
+  allin: ["All in", "good"],
+  rebuy: ["Back in", "good"],
+};
 
 export default function Poker({ code, players, me, name, follow }: GameProps) {
   const [table, send] = useTable<Game>(`poker:${code}`, me.id);
@@ -173,7 +184,10 @@ export default function Poker({ code, players, me, name, follow }: GameProps) {
           <span className={won ? "text-amber-200" : "text-zinc-300"}>{table.shown[id]}</span>
         )}
         {!!won && (
-          <span key={table.hand} className="float-up neon-green pixel absolute -top-6 text-sm">
+          <span
+            key={table.hand}
+            className="float-up neon-green pixel absolute -top-6 text-sm whitespace-nowrap"
+          >
             +{won}
           </span>
         )}
@@ -182,11 +196,7 @@ export default function Poker({ code, players, me, name, follow }: GameProps) {
   };
 
   const holes = (id: string) =>
-    table.folded.includes(id)
-      ? []
-      : table.shown?.[id] || id === me.id
-        ? table.holes[id]
-        : [undefined, undefined];
+    table.shown?.[id] || id === me.id ? table.holes[id] : [undefined, undefined];
 
   const last = table.last;
   const lastLine = !last
@@ -225,6 +235,38 @@ export default function Poker({ code, players, me, name, follow }: GameProps) {
         .concat(log.lines)
         .slice(0, 8),
     });
+
+  const said: Say | null = last
+    ? {
+        key: newsKey,
+        text: `${last.late ? "Time! " : ""}${SAYS[last.act][0]}${
+          last.amount && last.act !== "check" ? ` ${last.amount}` : ""
+        }`,
+        tone: SAYS[last.act][1],
+      }
+    : null;
+  const sayFor = (id: string) => (last?.by === id ? said : null);
+
+  const [champ, take] = winners.length === 1 ? winners[0] : [];
+  const banner = table.won
+    ? {
+        id: `${table.hand}-won`,
+        text: champ
+          ? `${name(champ)} wins ${take}${table.shown?.[champ] ? ` · ${table.shown[champ]}` : ""}`
+          : "Split pot",
+        colour: "#ffc83d",
+        // A run-out to showdown turns the board first.
+        delay: showdown ? 1300 : 200,
+      }
+    : table.street
+      ? { id: `${table.hand}-${table.street}`, text: STREETS[table.street] }
+      : table.hand > 1 && (table.hand - 1) % BLINDS_EVERY === 0
+        ? {
+            id: `${table.hand}-blinds`,
+            text: `Blinds up · ${table.blind}/${table.blind * 2}`,
+            colour: "#ff2d95",
+          }
+        : null;
 
   const status = table.won
     ? result
@@ -291,9 +333,11 @@ export default function Poker({ code, players, me, name, follow }: GameProps) {
             dim={table.folded.includes(id)}
             won={!!table.won?.[id]}
             clock={left / TURN_MS}
+            say={sayFor(id)}
           >
             <Fan
               cards={holes(id)}
+              mucked={table.folded.includes(id)}
               size="clamp(4px, 1.1vmin, 7px)"
               round={table.hand}
               from="25vh"
@@ -306,7 +350,7 @@ export default function Poker({ code, players, me, name, follow }: GameProps) {
         ))}
       </div>
 
-      <div className="mx-auto my-auto flex w-[min(94%,760px)] flex-col items-center gap-3 rounded-[50%/42%] border-4 border-emerald-500/50 bg-[radial-gradient(ellipse_at_center,#0f5132,#06281a_72%)] px-6 py-7 shadow-[0_0_40px_rgba(57,255,136,0.2),inset_0_0_60px_rgba(0,0,0,0.6)]">
+      <div className="relative mx-auto my-auto flex w-[min(94%,760px)] flex-col items-center gap-3 rounded-[50%/42%] border-4 border-emerald-500/50 bg-[radial-gradient(ellipse_at_center,#0f5132,#06281a_72%)] px-6 py-7 shadow-[0_0_40px_rgba(57,255,136,0.2),inset_0_0_60px_rgba(0,0,0,0.6)]">
         <span className="pixel text-center text-[0.72rem] text-emerald-300">
           Hand {table.hand} · {table.won ? "Showdown" : STREETS[table.street]} · Blinds{" "}
           {table.blind}/{table.blind * 2}
@@ -348,6 +392,8 @@ export default function Poker({ code, players, me, name, follow }: GameProps) {
         <span key={pot(table)} className="pot-bump pixel text-[0.88rem] text-amber-300">
           Pot {pot(table)}
         </span>
+        {/* Over the hand and blinds line, clear of the board. */}
+        {banner && <Banner {...banner} at="16%" />}
       </div>
 
       <div className="flex flex-col items-center gap-2 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
@@ -370,9 +416,11 @@ export default function Poker({ code, players, me, name, follow }: GameProps) {
               dim={table.folded.includes(me.id)}
               won={!!table.won?.[me.id]}
               clock={left / TURN_MS}
+              say={sayFor(me.id)}
             >
               <Fan
                 cards={holes(me.id)}
+                mucked={table.folded.includes(me.id)}
                 size="clamp(9px, 2.2vmin, 15px)"
                 round={table.hand}
                 delay={dealDelay(me.id)}

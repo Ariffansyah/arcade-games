@@ -32,10 +32,21 @@ import { useTable } from "@/lib/useTable";
 import { useTurnClock } from "@/lib/useTurnClock";
 import { sfx } from "@/lib/sfx";
 import type { GameProps } from "@/lib/useRoom";
-import { Fan, Seat } from "./CardTable";
+import Banner from "./Banner";
+import { Fan, Seat, type Say } from "./CardTable";
 import Clock from "./Clock";
 
 const CHIPS = [10, 25, 100, 500];
+
+const SAYS: Record<NonNullable<Game["last"]>["act"], [string, Say["tone"]]> = {
+  bet: ["Bet", "chip"],
+  sit: ["Sits out", "plain"],
+  hit: ["Hit", "plain"],
+  stand: ["Stand", "plain"],
+  double: ["Double!", "chip"],
+  split: ["Split!", "chip"],
+  surrender: ["Surrender", "bad"],
+};
 
 const total = (cards: number[]) => {
   const { total, soft } = count(cards);
@@ -116,8 +127,17 @@ export default function Blackjack({ code, players, me, name, follow }: GameProps
   const at = box(table);
   const seatedCount = table.boxes.length;
 
+  // The dealer's last card lands this long after the round is settled.
+  const reveal = Math.max(0, table.dealer.length - 1) * 500;
+
   const outcome = (b: Box) => {
-    if (!done) return null;
+    // A bust or a blackjack is plain the moment the card lands, so it's stamped then.
+    if (!done)
+      return value(b.cards) > 21 ? (
+        <span className="stamp pixel text-[0.8rem] text-red-400">Bust</span>
+      ) : blackjack(b) ? (
+        <span className="stamp pixel neon-green text-[0.8rem]">Blackjack!</span>
+      ) : null;
     const net = payout(table, b) - b.bet;
     const label = b.surrendered
       ? "Surrendered"
@@ -132,9 +152,9 @@ export default function Blackjack({ code, players, me, name, follow }: GameProps
               : "Lose";
     return (
       <span
-        className={`menu-in ${net > 0 ? "neon-green" : net === 0 ? "text-zinc-200" : "text-red-400"}`}
+        className={`stamp pixel text-[0.8rem] ${net > 0 ? "neon-green" : net === 0 ? "text-zinc-200" : "text-red-400"}`}
         // Held back until the dealer's last card has landed.
-        style={{ animationDelay: `${Math.max(0, table.dealer.length - 1) * 500}ms` }}
+        style={{ "--delay": `${reveal}ms` } as React.CSSProperties}
       >
         {label} {net > 0 ? `+${net}` : net || ""}
       </span>
@@ -159,6 +179,38 @@ export default function Blackjack({ code, players, me, name, follow }: GameProps
                     ? "surrendered"
                     : "stood"
       }`;
+
+  const said: Say | null = last
+    ? {
+        key: `${table.round}-${table.phase}-${table.turn}-${dealt}-${last.act}`,
+        text: `${last.late ? "Time! " : ""}${SAYS[last.act][0]}${
+          last.act === "bet" && last.amount ? ` ${last.amount}` : ""
+        }`,
+        tone: SAYS[last.act][1],
+      }
+    : null;
+
+  const banner =
+    done && table.dealer.length > 0
+      ? {
+          id: `${table.round}-dealer`,
+          text: natural(table.dealer)
+            ? "Dealer blackjack"
+            : dealer > 21
+              ? `Dealer busts with ${dealer}`
+              : `Dealer stands on ${dealer}`,
+          colour: dealer > 21 ? "#39ff88" : "#ff2d95",
+          delay: reveal,
+        }
+      : // The last bet deals the cards; the banner waits for the dealer's second one to land.
+        playing && (last?.act === "bet" || last?.act === "sit")
+        ? {
+            id: `${table.round}-deal`,
+            text: `Dealer shows ${total([table.dealer[0]])}`,
+            colour: "#22d3ee",
+            delay: (seatedCount * 2 + 1) * 110 + 480,
+          }
+        : null;
 
   const status = done
     ? table.paid?.[me.id] === undefined
@@ -212,7 +264,7 @@ export default function Blackjack({ code, players, me, name, follow }: GameProps
         )}
       </div>
 
-      <div className="mx-auto my-auto flex w-[min(94%,860px)] flex-col items-center gap-4 rounded-[50%/38%] border-4 border-emerald-500/50 bg-[radial-gradient(ellipse_at_center,#0f5132,#06281a_72%)] px-4 py-6 shadow-[0_0_40px_rgba(57,255,136,0.2),inset_0_0_60px_rgba(0,0,0,0.6)]">
+      <div className="relative mx-auto my-auto flex w-[min(94%,860px)] flex-col items-center gap-4 rounded-[50%/38%] border-4 border-emerald-500/50 bg-[radial-gradient(ellipse_at_center,#0f5132,#06281a_72%)] px-4 py-6 shadow-[0_0_40px_rgba(57,255,136,0.2),inset_0_0_60px_rgba(0,0,0,0.6)]">
         <span className="pixel text-center text-[0.65rem] text-emerald-300/80">
           Blackjack pays 3 to 2 · Dealer stands on 17 · Split up to {MAX_BOXES} hands · Surrender
           pays half
@@ -231,6 +283,7 @@ export default function Blackjack({ code, players, me, name, follow }: GameProps
                 dim={sittingOut}
                 won={(table.paid?.[id] ?? 0) > 0}
                 clock={left / TURN_MS}
+                say={last?.by === id ? said : null}
               >
                 <div className="flex flex-wrap items-start justify-center gap-3">
                   {boxes.map((b, k) => {
@@ -289,6 +342,8 @@ export default function Blackjack({ code, players, me, name, follow }: GameProps
             );
           })}
         </div>
+        {/* Along the felt's edge under the dealer, clear of everyone's cards and results. */}
+        {banner && <Banner {...banner} at="0%" />}
       </div>
 
       <div className="flex flex-col items-center gap-2 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">

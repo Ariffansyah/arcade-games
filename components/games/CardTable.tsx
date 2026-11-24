@@ -65,7 +65,17 @@ export function PlayingCard({
   );
 }
 
+const TONES = {
+  plain: "border-zinc-300 text-zinc-100",
+  chip: "border-amber-300 text-amber-200",
+  good: "border-emerald-400 text-emerald-300",
+  bad: "border-red-400 text-red-300",
+};
+
+export type Say = { key: string; text: string; tone?: keyof typeof TONES };
+
 // A player at the table: name and chips on a banner over their avatar, their cards under it.
+// `say` pops their latest move up over the avatar, so everyone sees who just did what.
 export function Seat({
   name,
   seat,
@@ -75,6 +85,7 @@ export function Seat({
   won = false,
   clock,
   badge,
+  say,
   children,
 }: {
   name: string;
@@ -86,6 +97,7 @@ export function Seat({
   // Share of the turn's time left, drawn under the avatar of whoever is up.
   clock?: number;
   badge?: React.ReactNode;
+  say?: Say | null;
   children?: React.ReactNode;
 }) {
   return (
@@ -115,6 +127,15 @@ export function Seat({
             />
           </span>
         )}
+        {say && (
+          <span
+            key={say.key}
+            aria-hidden
+            className={`say-pop pixel absolute top-1/2 left-1/2 z-10 -translate-x-1/2 rounded-sm border-2 bg-[#06030d]/90 px-1.5 py-1 text-[0.68rem] whitespace-nowrap shadow-[0_4px_12px_rgba(0,0,0,0.6)] ${TONES[say.tone ?? "plain"]}`}
+          >
+            {say.text}
+          </span>
+        )}
         {badge}
       </div>
       {children}
@@ -129,9 +150,11 @@ export const GLOW = "0 0 0 0.16em #ffc83d, 0 0 1.2em rgba(255, 200, 61, 0.7)";
 // and `step` the way a dealer goes round the table; later cards are hits that arrive at once, or
 // `later` ms apart when several land together, like the dealer drawing out.
 // A card turned face up flips over where it lies. Cards in `glow` are lit, the rest dimmed.
+// `mucked` slides the hand away, the way a folded hand goes into the middle.
 export function Fan({
   cards,
   size,
+  mucked = false,
   round,
   from = "-30vh",
   delay = 0,
@@ -141,6 +164,7 @@ export function Fan({
 }: {
   cards: (number | undefined)[];
   size: string;
+  mucked?: boolean;
   round?: string | number;
   from?: string;
   delay?: number;
@@ -149,7 +173,7 @@ export function Fan({
   glow?: number[];
 }) {
   return (
-    <div className="flex" style={{ fontSize: size }}>
+    <div className={`flex ${mucked ? "muck" : ""}`} style={{ fontSize: size }}>
       {cards.map((c, i) => {
         const lit = c !== undefined && glow?.includes(c);
         return (

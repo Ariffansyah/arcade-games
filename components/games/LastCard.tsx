@@ -35,6 +35,7 @@ import { useTable } from "@/lib/useTable";
 import { useTurnClock } from "@/lib/useTurnClock";
 import { sfx } from "@/lib/sfx";
 import type { GameProps } from "@/lib/useRoom";
+import Banner from "./Banner";
 import Clock from "./Clock";
 
 const HUE: Record<Colour | "wild", string> = {
@@ -746,6 +747,37 @@ export default function LastCard({ code, players, me, name, follow }: GameProps)
   if (lastNews && log.key !== newsKey)
     setLog({ key: newsKey, lines: [lastNews, ...log.lines].slice(0, 6) });
 
+  // The cards that change the game get called out across the table.
+  const called = !last
+    ? ""
+    : last.act === "play" && played
+      ? played.face === "skip"
+        ? "Skip!"
+        : played.face === "skip-all"
+          ? "Skip everyone!"
+          : played.face === "reverse"
+            ? "Reverse!"
+            : played.face === "flip"
+              ? "Flip!"
+              : played.colour === "wild"
+                ? `${played.face === "wild" ? "Wild" : played.face === "+colour" ? "Draw to colour" : played.face} · ${table.colour}`
+                : played.face.startsWith("+")
+                  ? `${played.face}!`
+                  : ""
+      : last.act === "uno"
+        ? "Last card!"
+        : last.act === "catch"
+          ? "Caught!"
+          : last.act === "challenge"
+            ? last.caught
+              ? "Bluff caught!"
+              : "Wrong call!"
+            : "";
+  const calledHue =
+    last?.act === "play" && played
+      ? HUE[played.colour === "wild" ? table.colour : played.colour]
+      : "#ffc83d";
+
   const drawer = last?.to ?? "";
   const flying = drawer && last?.took ? Math.min(last.took, 6) : 0;
   const moveKey = `${table.round}-${table.pile.length}-${table.deck.length}-${table.shuffles}`;
@@ -965,6 +997,8 @@ export default function LastCard({ code, players, me, name, follow }: GameProps)
             </span>
           );
         })}
+
+      {called && <Banner id={newsKey} text={called} colour={calledHue} delay={350} />}
 
       {table.winner && (
         <div className="menu-in absolute top-[50%] left-1/2 z-20 flex max-h-[calc(100%-2rem)] w-[min(90%,26rem)] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 overflow-y-auto rounded-md border-2 border-emerald-500 bg-[#06030d]/90 p-5 text-center shadow-[0_0_40px_rgba(57,255,136,0.35)]">
