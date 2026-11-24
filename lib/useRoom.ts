@@ -8,9 +8,10 @@ import {
   local,
   saveName,
   session,
-  sortPlayers,
   storedName,
+  withGuests,
   type Player,
+  type Presence,
 } from "./players";
 
 export type { Player };
@@ -22,6 +23,9 @@ export type GameProps = {
   players: Player[];
   me: Player;
   name: (id?: string) => string;
+  // Turn-based games report who the table waits on, so a shared screen can hand itself to them;
+  // "" once nobody is up.
+  follow: (id: string) => void;
 };
 
 export type RoomState = {
@@ -30,7 +34,6 @@ export type RoomState = {
   connected: boolean;
   me: Player;
 
-  slot: 0 | 1 | 2;
   game: string | null;
 
   setGame: (game: string | null) => void;
@@ -38,6 +41,10 @@ export type RoomState = {
   rename: (name: string) => void;
 
   name: (id?: string) => string;
+
+  guests: Player[];
+  addGuest: (name: string) => void;
+  dropGuest: (id: string) => void;
 };
 
 const randomName = () => `Player-${Math.random().toString(36).slice(2, 6)}`;
@@ -52,6 +59,10 @@ export function useRoom(code: string, name?: string): RoomState {
     };
   });
 
+  const [guests, setGuests] = useState<Player[]>(() =>
+    typeof window === "undefined" ? [] : (local.get<Player[]>(`arcade:guests:${code}`) ?? [])
+  );
+  const presence = useRef<Presence>({ ...me, guests });
   const channel = useRef<RealtimeChannel | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [game, setGameState] = useState<string | null>(() =>
@@ -73,15 +84,24 @@ export function useRoom(code: string, name?: string): RoomState {
   useEffect(() => local.set(`arcade:me:${code}`, me), [code, me]);
 
   useEffect(() => {
+    presence.current = { ...me, guests };
+    local.set(`arcade:guests:${code}`, guests);
+    const ch = channel.current;
+    if (ch?.state === "joined") ch.track(presence.current);
+  }, [code, me, guests]);
+
+  useEffect(() => {
     const ch = supabase.channel(`room:${code}`, {
       config: { presence: { key: me.id } },
     });
 
     ch.on("presence", { event: "sync" }, () => {
-      const list = Object.values(ch.presenceState<Player>())
-        .map((entries) => entries[0])
-        .filter(Boolean);
-      setPlayers(sortPlayers(list));
+      const list = withGuests(
+        Object.values(ch.presenceState<Presence>())
+          .map((entries) => entries[0])
+          .filter(Boolean)
+      );
+      setPlayers(list);
       setKnown((names) => {
         const next = { ...names, ...Object.fromEntries(list.map((p) => [p.id, p.name])) };
         session.set(`arcade:names:${code}`, next);
@@ -98,7 +118,7 @@ export function useRoom(code: string, name?: string): RoomState {
       .subscribe((status) => {
         setConnected(status === "SUBSCRIBED");
         if (status === "SUBSCRIBED") {
-          ch.track(me);
+          ch.track(presence.current);
           ch.send({ type: "broadcast", event: "which", payload: {} });
         }
 
@@ -124,11 +144,30 @@ export function useRoom(code: string, name?: string): RoomState {
     channel.current?.send({ type: "broadcast", event: "game", payload: { game: next } });
   };
 
-  const index = players.findIndex((p) => p.id === me.id);
-  const slot = index === 0 ? 1 : index === 1 ? 2 : 0;
+  const addGuest = (next: string) =>
+    setGuests((list) => [
+      ...list,
+      {
+        id: crypto.randomUUID(),
+        name: cleanName(next) || `Player ${players.length + 1}`,
+        joinedAt: Date.now(),
+      },
+    ]);
+  const dropGuest = (id: string) => setGuests((list) => list.filter((g) => g.id !== id));
 
   const nameOf = (id?: string) =>
     players.find((p) => p.id === id)?.name ?? known[id ?? ""] ?? "someone";
 
-  return { players, connected, me, slot, game, setGame, rename, name: nameOf };
+  return {
+    players,
+    connected,
+    me,
+    game,
+    setGame,
+    rename,
+    name: nameOf,
+    guests,
+    addGuest,
+    dropGuest,
+  };
 }

@@ -105,7 +105,7 @@ const STEPS: Record<string, number> = {
   ArrowDown: -3,
 };
 
-export default function Topple({ code, players, me, name }: GameProps) {
+export default function Topple({ code, players, me, name, follow }: GameProps) {
   const [saved, send] = useTable<Tower>(`topple:${code}`, me.id);
   // A table from the meter version of this game has no poses to stand on; deal a fresh tower.
   const table = saved?.poses ? saved : null;
@@ -120,6 +120,7 @@ export default function Topple({ code, players, me, name }: GameProps) {
   const isHost = players[0]?.id === me.id;
   const up = table && !table.loser ? table.order[table.turn] : "";
   const myTurn = up === me.id;
+  useEffect(() => follow(up), [follow, up]);
   const latest = useRef({ table, myTurn, send, stream, cursor });
 
   useEffect(() => {

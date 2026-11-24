@@ -42,13 +42,14 @@ const total = (cards: number[]) => {
   return soft && total < 21 ? `Soft ${total}` : String(total);
 };
 
-export default function Blackjack({ code, players, me, name }: GameProps) {
+export default function Blackjack({ code, players, me, name, follow }: GameProps) {
   const [table, send] = useTable<Game>(`blackjack:${code}`, me.id);
   const [stake, setStake] = useState(0);
 
   const isHost = players[0]?.id === me.id;
   const up = table && table.phase !== "done" ? current(table) : "";
   const myTurn = up === me.id;
+  useEffect(() => follow(up), [follow, up]);
   const upGone = !!up && !players.some((p) => p.id === up);
   const seated = !!table && table.order.includes(me.id);
 

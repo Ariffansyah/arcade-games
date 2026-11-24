@@ -1,4 +1,17 @@
-export type Player = { id: string; name: string; joinedAt: number };
+// `host` is set on a guest: someone sharing another player's screen, taking turns on that device.
+export type Player = { id: string; name: string; joinedAt: number; host?: string };
+
+export type Presence = Player & { guests?: Player[] };
+
+// Each device tracks its own player and the guests on its screen; the room seats them all.
+// Presence comes from other people's browsers, so a guest list that isn't one is ignored.
+export const withGuests = (list: Presence[]): Player[] =>
+  sortPlayers(
+    list.flatMap(({ guests, ...p }) => [
+      p,
+      ...(Array.isArray(guests) ? guests : []).map((g) => ({ ...g, host: p.id })),
+    ])
+  );
 
 export const sortPlayers = (list: Player[]): Player[] =>
   [...list].sort((a, b) => a.joinedAt - b.joinedAt || a.id.localeCompare(b.id));

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { GAMES, type GameInfo } from "@/lib/games";
 import { HOWTO } from "@/lib/howto";
 import { useRoom, type GameProps, type Player } from "@/lib/useRoom";
@@ -131,7 +131,15 @@ function Invite({ code }: { code: string }) {
 }
 
 // Everyone in the room as player slots, plus an open one waiting for the next to join.
-function Party({ players, me }: { players: Player[]; me: Player }) {
+function Party({
+  players,
+  me,
+  onDrop,
+}: {
+  players: Player[];
+  me: Player;
+  onDrop: (id: string) => void;
+}) {
   return (
     <ul className="flex flex-wrap justify-center gap-2" aria-label="Players">
       {players.map((p, i) => (
@@ -157,9 +165,22 @@ function Party({ players, me }: { players: Player[]; me: Player }) {
               P{i + 1}
               {i === 0 && " · host"}
               {p.id === me.id && " · you"}
+              {p.host && " · same screen"}
             </span>
             <span className="max-w-32 truncate text-lg text-zinc-100">{p.name}</span>
           </span>
+          {p.host === me.id && (
+            <button
+              onClick={() => {
+                sfx.back();
+                onDrop(p.id);
+              }}
+              aria-label={`Remove ${p.name}`}
+              className="-mr-2 rounded-sm px-2 py-1 text-lg leading-none text-zinc-500 hover:text-red-400"
+            >
+              ×
+            </button>
+          )}
         </li>
       ))}
       <li className="flex items-center gap-2.5 rounded-md border-2 border-dashed border-zinc-800 py-1.5 pr-4 pl-1.5 text-zinc-600">
@@ -169,6 +190,42 @@ function Party({ players, me }: { players: Player[]; me: Player }) {
         <span className="blink pixel text-[0.72rem]">Insert coin</span>
       </li>
     </ul>
+  );
+}
+
+const SHARED = GAMES.filter((g) => g.local)
+  .map((g) => g.name)
+  .join(", ");
+
+// Friends round one phone or laptop each get a seat, and turn-based games pass the screen round.
+function AddGuest({ onAdd }: { onAdd: (name: string) => void }) {
+  const [name, setName] = useState("");
+  return (
+    <form
+      className="flex flex-col items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        sfx.select();
+        onAdd(name);
+        setName("");
+      }}
+    >
+      <span className="flex flex-wrap items-center justify-center gap-2">
+        <label htmlFor="guest" className="text-base text-zinc-400">
+          Sharing this screen?
+        </label>
+        <input
+          id="guest"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={16}
+          placeholder="Their name"
+          className="cab w-40 rounded-sm px-2 py-1.5 font-sans text-base"
+        />
+        <button className="btn-ghost rounded-sm px-3 py-2 text-[0.88rem]">Add player</button>
+      </span>
+      <span className="text-sm text-zinc-600">They take turns on this device in {SHARED}.</span>
+    </form>
   );
 }
 
@@ -293,16 +350,32 @@ function PauseMenu({
 }
 
 export default function Lobby({ code }: { code: string }) {
-  const { players, connected, me, slot, game, setGame, rename, name } = useRoom(code);
+  const { players, connected, me, game, setGame, rename, name, guests, addGuest, dropGuest } =
+    useRoom(code);
   const hydrated = useHydrated();
   const [options, setOptions] = useState(false);
   const [paused, setPaused] = useState(false);
   const fullscreen = useFullscreen();
   // Fullscreen needs a click or tap, so a game someone else started goes fullscreen on our first.
   const asked = useRef<string | null>(null);
-  const seat = players.findIndex((p) => p.id === me.id) + 1;
+  // Who on this screen is playing right now, and who last confirmed they're holding it.
+  const [acting, setActing] = useState(me.id);
+  const [shown, setShown] = useState(me.id);
+  const follow = useCallback(
+    (id: string) => {
+      if (!id) setActing(me.id);
+      else if (id === me.id || guests.some((g) => g.id === id)) setActing(id);
+    },
+    [me.id, guests]
+  );
 
   const current = GAMES.find((g) => g.id === game);
+  const here = [me, ...guests];
+  const seated = current?.local ? players : players.filter((p) => !p.host);
+  const player = (current?.local && here.find((p) => p.id === acting)) || me;
+  const seat = seated.findIndex((p) => p.id === player.id) + 1;
+  const slot = seat === 1 ? 1 : seat === 2 ? 2 : 0;
+  const covered = !!current?.secret && player.id !== shown;
   const Game = current ? CABINETS[current.id] : undefined;
   const playing = !!(current && Game);
 
@@ -371,7 +444,26 @@ export default function Lobby({ code }: { code: string }) {
                 className="h-2.5 w-2.5 rounded-full"
                 style={{ background: SLOT_COLOURS[Math.max(0, seat - 1) % SLOT_COLOURS.length] }}
               />
-              <span className="hidden sm:inline">{me.name} ·</span> P{seat || "?"}
+              {current.local && guests.length > 0 ? (
+                <select
+                  value={player.id}
+                  onChange={(e) => {
+                    sfx.select();
+                    setActing(e.target.value);
+                  }}
+                  aria-label="Who's playing on this screen"
+                  className="max-w-28 truncate rounded-sm bg-transparent py-1 text-zinc-200 sm:max-w-40"
+                >
+                  {here.map((p) => (
+                    <option key={p.id} value={p.id} className="bg-[#06030d]">
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="hidden sm:inline">{player.name} ·</span>
+              )}{" "}
+              P{seat || "?"}
             </span>
             <button
               onClick={() => {
@@ -410,9 +502,33 @@ export default function Lobby({ code }: { code: string }) {
             Reconnecting…
           </p>
         )}
-        <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center-safe overflow-x-hidden overflow-y-auto px-3 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5">
-          <Game code={code} slot={slot} players={players} me={me} name={name} />
+        <div
+          inert={covered}
+          className="relative flex min-h-0 flex-1 flex-col items-center justify-center-safe overflow-x-hidden overflow-y-auto px-3 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5"
+        >
+          <Game code={code} slot={slot} players={seated} me={player} name={name} follow={follow} />
         </div>
+        {covered && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Pass to ${player.name}`}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-[#06030d] p-6 text-center"
+          >
+            <span className="pixel text-[0.8rem] text-zinc-500">Cards hidden</span>
+            <span className="pixel neon-cyan text-xl sm:text-2xl">Pass to {player.name}</span>
+            <button
+              autoFocus
+              onClick={() => {
+                sfx.select();
+                setShown(player.id);
+              }}
+              className="btn-arcade rounded-sm px-5 py-3"
+            >
+              I&apos;m {player.name}
+            </button>
+          </div>
+        )}
         <Loading key={current.id} game={current} />
         {paused && (
           <PauseMenu
@@ -465,13 +581,14 @@ export default function Lobby({ code }: { code: string }) {
           </div>
         </header>
 
-        <Party players={players} me={me} />
+        <Party players={players} me={me} onDrop={dropGuest} />
+        <AddGuest onAdd={addGuest} />
 
         <p role="status" className="text-center text-base text-zinc-500">
           {!connected ? (
             <span className="blink text-red-400">Reconnecting to the room…</span>
           ) : players.length < 2 ? (
-            "Waiting for player 2 — send the invite."
+            "Waiting for player 2 — send the invite, or add someone on this screen."
           ) : (
             `${players.length} players in. Anyone can pick the game.`
           )}
@@ -479,6 +596,7 @@ export default function Lobby({ code }: { code: string }) {
 
         <GameSelect
           players={players.length}
+          guests={players.filter((p) => p.host).length}
           onPlay={(g) => {
             asked.current = g.id;
             if (settings().fullscreen) enterFullscreen();

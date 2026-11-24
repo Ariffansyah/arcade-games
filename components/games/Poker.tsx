@@ -31,7 +31,7 @@ import Clock from "./Clock";
 
 const STREETS = ["Preflop", "Flop", "Turn", "River"];
 
-export default function Poker({ code, players, me, name }: GameProps) {
+export default function Poker({ code, players, me, name, follow }: GameProps) {
   const [table, send] = useTable<Game>(`poker:${code}`, me.id);
   const [amount, setAmount] = useState(0);
   const [log, setLog] = useState({ key: "", lines: [] as string[] });
@@ -39,6 +39,7 @@ export default function Poker({ code, players, me, name }: GameProps) {
   const isHost = players[0]?.id === me.id;
   const up = table && !table.won ? current(table) : "";
   const myTurn = up === me.id;
+  useEffect(() => follow(up), [follow, up]);
   const upGone = !!up && !players.some((p) => p.id === up);
   const seated = !!table && table.order.includes(me.id);
 

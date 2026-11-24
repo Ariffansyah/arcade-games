@@ -48,8 +48,17 @@ import type { GameProps } from "@/lib/useRoom";
 import { createStage, ease, has3D, type Stage } from "./stage";
 import { createDice, stepDie, toss } from "./dice";
 
-const SEATS = 6;
-const TOKENS = ["#ff2d95", "#22d3ee", "#ffc83d", "#39ff88", "#a78bfa", "#fb923c"];
+const SEATS = 8;
+const TOKENS = [
+  "#ff2d95",
+  "#22d3ee",
+  "#ffc83d",
+  "#39ff88",
+  "#a78bfa",
+  "#fb923c",
+  "#f1f5f9",
+  "#3b82f6",
+];
 
 const C = 2.6;
 const T = 1.6;
@@ -331,7 +340,7 @@ const spot = (i: number, seat: number) => {
   );
 };
 
-export default function Landlord({ code, players, me, name }: GameProps) {
+export default function Landlord({ code, players, me, name, follow }: GameProps) {
   const [saved, send] = useTable<Game>(`landlord:${code}`, me.id);
   // A table from before card decks existed cannot be played on; start a fresh one.
   const table = saved?.decks ? saved : null;
@@ -353,6 +362,7 @@ export default function Landlord({ code, players, me, name }: GameProps) {
   const myTurn = up === me.id && !table?.auction && !table?.trade;
   const waitingOn = table && !table.winner ? actor(table) : "";
   const upGone = !!waitingOn && !players.some((p) => p.id === waitingOn);
+  useEffect(() => follow(waitingOn), [follow, waitingOn]);
   const selected = picked >= 0 ? picked : (table?.offer ?? -1);
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cleanName, sortPlayers, type Player } from "./players.ts";
+import { cleanName, sortPlayers, withGuests, type Player } from "./players.ts";
 
 const p = (id: string, joinedAt: number): Player => ({ id, name: id, joinedAt });
 
@@ -28,4 +28,19 @@ test("a nickname cannot smuggle invisible or control characters in", () => {
   assert.equal(cleanName("Ari\u200bffan"), "Ariffan");
   assert.equal(cleanName("bad\u0007name\n"), "badname");
   assert.equal(cleanName("  spaced   out  "), "spaced out");
+});
+
+test("guests sit at the table after the device they share, marked with its player", () => {
+  const seated = withGuests([{ ...p("b", 2), guests: [p("g1", 3), p("g2", 4)] }, p("a", 1)]);
+  assert.deepEqual(
+    seated.map((x) => [x.id, x.host]),
+    [
+      ["a", undefined],
+      ["b", undefined],
+      ["g1", "b"],
+      ["g2", "b"],
+    ]
+  );
+  assert.ok(seated.every((x) => !("guests" in x)));
+  assert.equal(withGuests([{ ...p("a", 1), guests: "x" as never }]).length, 1);
 });

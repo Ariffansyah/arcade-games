@@ -22,10 +22,13 @@ const typing = (t: EventTarget | null) =>
 // details, arrows to browse, Q and E to flip the filter, Enter to play.
 export default function GameSelect({
   players,
+  guests = 0,
   onPlay,
   action = "Play",
 }: {
   players: number;
+  // Players sharing someone else's screen only count in games played by taking turns.
+  guests?: number;
   onPlay: (game: GameInfo) => void;
   action?: string;
 }) {
@@ -44,7 +47,7 @@ export default function GameSelect({
   );
   const index = Math.max(0, shown.findIndex((g) => g.id === pick));
   const game = shown[index];
-  const short = players < game.seats;
+  const short = players - (game.local ? 0 : guests) < game.seats;
   const guide = HOWTO[game.id];
 
   const move = (step: number) => {

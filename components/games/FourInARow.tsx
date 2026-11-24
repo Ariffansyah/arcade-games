@@ -70,7 +70,7 @@ function buildBoard() {
   return group;
 }
 
-export default function FourInARow({ code, players, me, name }: GameProps) {
+export default function FourInARow({ code, players, me, name, follow }: GameProps) {
   const [table, send] = useTable<Table>(`four:${code}`, me.id);
   const mount = useRef<HTMLDivElement>(null);
   const view = useRef<{ sync: (t: Table | null) => void } | null>(null);
@@ -79,6 +79,8 @@ export default function FourInARow({ code, players, me, name }: GameProps) {
 
   const mySeat = table ? table.seats.indexOf(me.id) : -1;
   const myTurn = !!table && table.winner === -1 && mySeat === table.turn;
+  const up = table && table.winner === -1 ? table.seats[table.turn] : "";
+  useEffect(() => follow(up), [follow, up]);
   useEffect(() => {
     latest.current = { table, mySeat, send };
   });

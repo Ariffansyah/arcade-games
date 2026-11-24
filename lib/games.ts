@@ -9,6 +9,13 @@ export type GameInfo = {
   party: boolean;
 
   mood: "co-op" | "versus";
+
+  // The official rules' table limit, where the game has one.
+  most?: number;
+  // Turn-based, so several players can share one screen and pass it round.
+  local?: true;
+  // Each player holds cards the others mustn't see, so a shared screen covers itself between turns.
+  secret?: true;
 };
 
 export const GAMES: GameInfo[] = [
@@ -164,6 +171,8 @@ export const GAMES: GameInfo[] = [
     seats: 2,
     party: true,
     mood: "versus",
+    local: true,
+    secret: true,
   },
   {
     id: "poker",
@@ -173,6 +182,8 @@ export const GAMES: GameInfo[] = [
     seats: 2,
     party: true,
     mood: "versus",
+    local: true,
+    secret: true,
   },
   {
     id: "blackjack",
@@ -182,6 +193,7 @@ export const GAMES: GameInfo[] = [
     seats: 1,
     party: true,
     mood: "versus",
+    local: true,
   },
   {
     id: "topple",
@@ -191,6 +203,7 @@ export const GAMES: GameInfo[] = [
     seats: 2,
     party: true,
     mood: "versus",
+    local: true,
   },
   {
     id: "four",
@@ -200,6 +213,7 @@ export const GAMES: GameInfo[] = [
     seats: 2,
     party: false,
     mood: "versus",
+    local: true,
   },
   {
     id: "yacht",
@@ -209,6 +223,7 @@ export const GAMES: GameInfo[] = [
     seats: 2,
     party: true,
     mood: "versus",
+    local: true,
   },
   {
     id: "landlord",
@@ -218,6 +233,8 @@ export const GAMES: GameInfo[] = [
     seats: 2,
     party: true,
     mood: "versus",
+    most: 8,
+    local: true,
   },
 ];
 
@@ -225,4 +242,5 @@ export const isTogether = (g: GameInfo) => g.mood === "co-op";
 
 export const moodLabel = (g: GameInfo) => (g.mood === "co-op" ? "together" : "head to head");
 
-export const seatLabel = (g: GameInfo) => (g.party ? `${g.seats}+ players` : `${g.seats} players`);
+export const seatLabel = (g: GameInfo) =>
+  g.most ? `${g.seats}–${g.most} players` : g.party ? `${g.seats}+ players` : `${g.seats} players`;

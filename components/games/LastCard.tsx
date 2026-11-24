@@ -445,7 +445,7 @@ const usePortrait = () =>
 const TILT = 55;
 const FORESHORTEN = Math.cos((TILT * Math.PI) / 180);
 
-export default function LastCard({ code, players, me, name }: GameProps) {
+export default function LastCard({ code, players, me, name, follow }: GameProps) {
   const [table, send] = useTable<Game>(`lastcard:${code}`, me.id);
   const [picking, setPicking] = useState(-1);
   const [mode, setMode] = useState<Mode | null>(null);
@@ -459,6 +459,7 @@ export default function LastCard({ code, players, me, name }: GameProps) {
   const isHost = players[0]?.id === me.id;
   const up = table && !table.winner ? current(table) : "";
   const myTurn = up === me.id;
+  useEffect(() => follow(up), [follow, up]);
   const upGone = !!up && !players.some((p) => p.id === up);
   const chosen = mode ?? table?.mode ?? "classic";
   const house = rules ?? table?.rules ?? {};
