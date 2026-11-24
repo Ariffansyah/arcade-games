@@ -197,6 +197,13 @@ export default function GameSelect({
               Rules
             </a>
           </div>
+          {short && (
+            <p className="text-sm text-zinc-400">
+              {game.local
+                ? "Playing on one device? Add the others under Sharing this screen."
+                : "Everyone needs their own device for this one. Send the invite."}
+            </p>
+          )}
         </div>
       </div>
 

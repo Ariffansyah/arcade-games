@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import {
@@ -64,7 +64,13 @@ export function useRoom(code: string, name?: string): RoomState {
   );
   const presence = useRef<Presence>({ ...me, guests });
   const channel = useRef<RealtimeChannel | null>(null);
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [online, setOnline] = useState<Presence[]>([]);
+  // This device's own players are seated straight away, so friends sharing one screen can play
+  // before the room connects, or with no connection at all.
+  const players = useMemo(
+    () => withGuests([...online.filter((p) => p.id !== me.id), { ...me, guests }]),
+    [online, me, guests]
+  );
   const [game, setGameState] = useState<string | null>(() =>
     typeof window === "undefined" ? null : session.get<string>(`arcade:game:${code}`)
   );
@@ -96,12 +102,11 @@ export function useRoom(code: string, name?: string): RoomState {
     });
 
     ch.on("presence", { event: "sync" }, () => {
-      const list = withGuests(
-        Object.values(ch.presenceState<Presence>())
-          .map((entries) => entries[0])
-          .filter(Boolean)
-      );
-      setPlayers(list);
+      const present = Object.values(ch.presenceState<Presence>())
+        .map((entries) => entries[0])
+        .filter(Boolean);
+      const list = withGuests(present);
+      setOnline(present);
       setKnown((names) => {
         const next = { ...names, ...Object.fromEntries(list.map((p) => [p.id, p.name])) };
         session.set(`arcade:names:${code}`, next);
@@ -122,7 +127,7 @@ export function useRoom(code: string, name?: string): RoomState {
           ch.send({ type: "broadcast", event: "which", payload: {} });
         }
 
-        if (status === "CLOSED" || status === "CHANNEL_ERROR") setPlayers([]);
+        if (status === "CLOSED" || status === "CHANNEL_ERROR") setOnline([]);
       });
 
     channel.current = ch;
