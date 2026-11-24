@@ -11,6 +11,7 @@ import GameSelect from "@/components/GameSelect";
 import MenuScene from "@/components/MenuScene";
 import SettingsPanel from "@/components/Settings";
 import Cover from "@/components/Cover";
+import Roster from "@/components/Roster";
 import BlindMaze from "@/components/games/BlindMaze";
 import DoodleGuess from "@/components/games/DoodleGuess";
 import Battleships from "@/components/games/Battleships";
@@ -193,42 +194,6 @@ function Party({
   );
 }
 
-const SHARED = GAMES.filter((g) => g.local)
-  .map((g) => g.name)
-  .join(", ");
-
-// Friends round one phone or laptop each get a seat, and turn-based games pass the screen round.
-function AddGuest({ onAdd }: { onAdd: (name: string) => void }) {
-  const [name, setName] = useState("");
-  return (
-    <form
-      className="flex flex-col items-center gap-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        sfx.select();
-        onAdd(name);
-        setName("");
-      }}
-    >
-      <span className="flex flex-wrap items-center justify-center gap-2">
-        <label htmlFor="guest" className="text-base text-zinc-400">
-          Sharing this screen?
-        </label>
-        <input
-          id="guest"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={16}
-          placeholder="Their name"
-          className="cab w-40 rounded-sm px-2 py-1.5 font-sans text-base"
-        />
-        <button className="btn-ghost rounded-sm px-3 py-2 text-[0.88rem]">Add player</button>
-      </span>
-      <span className="text-sm text-zinc-600">They take turns on this device in {SHARED}.</span>
-    </form>
-  );
-}
-
 // A game's title card while it loads in, with one of its tips. It fades itself out.
 function Loading({ game }: { game: GameInfo }) {
   const [tip] = useState(() => {
@@ -350,8 +315,19 @@ function PauseMenu({
 }
 
 export default function Lobby({ code }: { code: string }) {
-  const { players, connected, me, game, setGame, rename, name, guests, addGuest, dropGuest } =
-    useRoom(code);
+  const {
+    players,
+    connected,
+    me,
+    game,
+    setGame,
+    rename,
+    name,
+    guests,
+    addGuest,
+    renameGuest,
+    dropGuest,
+  } = useRoom(code);
   const hydrated = useHydrated();
   const [options, setOptions] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -376,6 +352,8 @@ export default function Lobby({ code }: { code: string }) {
   const seat = seated.findIndex((p) => p.id === player.id) + 1;
   const slot = seat === 1 ? 1 : seat === 2 ? 2 : 0;
   const covered = !!current?.secret && player.id !== shown;
+  // With everyone on this device the game needs no connection, so a dropped one isn't news.
+  const remote = seated.some((p) => p.id !== me.id && p.host !== me.id);
   const Game = current ? CABINETS[current.id] : undefined;
   const playing = !!(current && Game);
 
@@ -494,7 +472,7 @@ export default function Lobby({ code }: { code: string }) {
             </button>
           </span>
         </div>
-        {!connected && (
+        {!connected && remote && (
           <p
             role="status"
             className="blink absolute top-12 left-1/2 z-30 -translate-x-1/2 rounded-sm bg-[#06030d]/90 px-3 py-1 text-sm text-red-400"
@@ -506,7 +484,24 @@ export default function Lobby({ code }: { code: string }) {
           inert={covered}
           className="relative flex min-h-0 flex-1 flex-col items-center justify-center-safe overflow-x-hidden overflow-y-auto px-3 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5"
         >
-          <Game code={code} slot={slot} players={seated} me={player} name={name} follow={follow} />
+          <Game
+            code={code}
+            slot={slot}
+            players={seated}
+            me={player}
+            name={name}
+            follow={follow}
+            roster={
+              current.local && (
+                <Roster
+                  players={here}
+                  onRename={(id, next) => (id === me.id ? rename(next) : renameGuest(id, next))}
+                  onAdd={addGuest}
+                  onDrop={dropGuest}
+                />
+              )
+            }
+          />
         </div>
         {covered && (
           <div
@@ -582,13 +577,12 @@ export default function Lobby({ code }: { code: string }) {
         </header>
 
         <Party players={players} me={me} onDrop={dropGuest} />
-        <AddGuest onAdd={addGuest} />
 
         <p role="status" className="text-center text-base text-zinc-500">
           {!connected ? (
             <span className="blink text-red-400">Reconnecting to the room…</span>
           ) : players.length < 2 ? (
-            "Waiting for player 2 — send the invite, or add someone on this screen."
+            "Send the invite, or play on this device: open a turn-based game and add everyone there."
           ) : (
             `${players.length} players in. Anyone can pick the game.`
           )}

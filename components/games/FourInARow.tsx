@@ -70,7 +70,7 @@ function buildBoard() {
   return group;
 }
 
-export default function FourInARow({ code, players, me, name, follow }: GameProps) {
+export default function FourInARow({ code, players, me, name, follow, roster }: GameProps) {
   const [table, send] = useTable<Table>(`four:${code}`, me.id);
   const mount = useRef<HTMLDivElement>(null);
   const view = useRef<{ sync: (t: Table | null) => void } | null>(null);
@@ -311,6 +311,7 @@ export default function FourInARow({ code, players, me, name, follow }: GameProp
             Two seats only — you are watching.
           </p>
         )}
+        {(!table || table.winner !== -1) && roster}
         {(isHost || (table && mySeat >= 0)) && canStart && (
           <button onClick={start} className="btn-arcade play-pulse rounded-sm px-6 py-3">
             {table && !gone ? "Rematch" : "Start"}

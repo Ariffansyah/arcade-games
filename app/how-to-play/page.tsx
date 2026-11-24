@@ -45,9 +45,9 @@ export default function HowToPlay() {
           code, and the first person in is the host — they pick the cabinet and start the rounds.
         </p>
         <p className="text-balance text-zinc-400">
-          Only one phone? Add everyone under Sharing this screen in the room. The turn-based games
-          hand the screen to whoever is up, and the card games hide your hand until you say
-          you&apos;re holding it.
+          Only one phone? Open a turn-based game on your own and add everyone&apos;s name on its
+          start screen. The game hands the screen to whoever is up, and the card games hide your
+          hand until you say you&apos;re holding it.
         </p>
         <Link href="/" className="btn-ghost rounded-sm px-4 py-2 text-sm">
           Back to the arcade

@@ -27,7 +27,8 @@ export default function GameSelect({
   action = "Play",
 }: {
   players: number;
-  // Players sharing someone else's screen only count in games played by taking turns.
+  // Players sharing someone else's screen only count in games played by taking turns, and those
+  // games add their players on their own start screen, so they never wait on the room.
   guests?: number;
   onPlay: (game: GameInfo) => void;
   action?: string;
@@ -47,7 +48,7 @@ export default function GameSelect({
   );
   const index = Math.max(0, shown.findIndex((g) => g.id === pick));
   const game = shown[index];
-  const short = players - (game.local ? 0 : guests) < game.seats;
+  const short = !game.local && players - guests < game.seats;
   const guide = HOWTO[game.id];
 
   const move = (step: number) => {
@@ -199,9 +200,7 @@ export default function GameSelect({
           </div>
           {short && (
             <p className="text-sm text-zinc-400">
-              {game.local
-                ? "Playing on one device? Add the others under Sharing this screen."
-                : "Everyone needs their own device for this one. Send the invite."}
+              Everyone needs their own device for this one. Send the invite.
             </p>
           )}
         </div>

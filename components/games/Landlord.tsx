@@ -340,7 +340,7 @@ const spot = (i: number, seat: number) => {
   );
 };
 
-export default function Landlord({ code, players, me, name, follow }: GameProps) {
+export default function Landlord({ code, players, me, name, follow, roster }: GameProps) {
   const [saved, send] = useTable<Game>(`landlord:${code}`, me.id);
   // A table from before card decks existed cannot be played on; start a fresh one.
   const table = saved?.decks ? saved : null;
@@ -1250,6 +1250,7 @@ export default function Landlord({ code, players, me, name, follow }: GameProps)
           </button>
         )}
 
+        {(!table || table.winner) && roster}
         {isHost && (!table || table.winner) && (
           <button
             onClick={start}

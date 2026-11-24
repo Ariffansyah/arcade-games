@@ -42,7 +42,7 @@ const SAYS: Record<NonNullable<Game["last"]>["act"], [string, Say["tone"]]> = {
   rebuy: ["Back in", "good"],
 };
 
-export default function Poker({ code, players, me, name, follow }: GameProps) {
+export default function Poker({ code, players, me, name, follow, roster }: GameProps) {
   const [table, send] = useTable<Game>(`poker:${code}`, me.id);
   const [amount, setAmount] = useState(0);
   const [log, setLog] = useState({ key: "", lines: [] as string[] });
@@ -109,6 +109,7 @@ export default function Poker({ code, players, me, name, follow }: GameProps) {
           <p className="text-sm text-zinc-400">
             At the table ({players.length}): {players.map((p) => p.name).join(", ")}
           </p>
+          {roster}
           {isHost ? (
             <button
               onClick={() => start(true)}

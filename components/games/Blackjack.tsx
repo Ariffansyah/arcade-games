@@ -53,7 +53,7 @@ const total = (cards: number[]) => {
   return soft && total < 21 ? `Soft ${total}` : String(total);
 };
 
-export default function Blackjack({ code, players, me, name, follow }: GameProps) {
+export default function Blackjack({ code, players, me, name, follow, roster }: GameProps) {
   const [table, send] = useTable<Game>(`blackjack:${code}`, me.id);
   const [stake, setStake] = useState(0);
 
@@ -107,6 +107,7 @@ export default function Blackjack({ code, players, me, name, follow }: GameProps
             Picture cards count 10, aces 1 or 11. Split pairs, double down, or surrender half your
             bet. Everyone starts with {STACK} chips and gets {TURN_MS / 1000} seconds a turn.
           </p>
+          {roster}
           {isHost ? (
             <button onClick={next} className="btn-arcade play-pulse rounded-sm px-6 py-3">
               Open the table

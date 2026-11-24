@@ -446,7 +446,7 @@ const usePortrait = () =>
 const TILT = 55;
 const FORESHORTEN = Math.cos((TILT * Math.PI) / 180);
 
-export default function LastCard({ code, players, me, name, follow }: GameProps) {
+export default function LastCard({ code, players, me, name, follow, roster }: GameProps) {
   const [table, send] = useTable<Game>(`lastcard:${code}`, me.id);
   const [picking, setPicking] = useState(-1);
   const [mode, setMode] = useState<Mode | null>(null);
@@ -650,6 +650,7 @@ export default function LastCard({ code, players, me, name, follow }: GameProps)
             to empty their hand wins the round. The Flip deck has a dark side: play a Flip and every
             card on the table turns over. No Mercy adds Wild Draw Six and Ten.
           </p>
+          {roster}
           {modePicker}
           {rulesPicker}
           {isHost ? (

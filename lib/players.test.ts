@@ -44,3 +44,11 @@ test("guests sit at the table after the device they share, marked with its playe
   assert.ok(seated.every((x) => !("guests" in x)));
   assert.equal(withGuests([{ ...p("a", 1), guests: "x" as never }]).length, 1);
 });
+
+test("a guest added before another device joined still sits after its own device", () => {
+  const seated = withGuests([{ ...p("b", 5), guests: [p("g", 3)] }, p("a", 1), p("c", 4)]);
+  assert.deepEqual(
+    seated.map((x) => x.id),
+    ["a", "c", "b", "g"]
+  );
+});

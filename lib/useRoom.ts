@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import {
@@ -26,6 +26,8 @@ export type GameProps = {
   // Turn-based games report who the table waits on, so a shared screen can hand itself to them;
   // "" once nobody is up.
   follow: (id: string) => void;
+  // Turn-based games show this on their start screen: the players on this device, to add and name.
+  roster?: ReactNode;
 };
 
 export type RoomState = {
@@ -44,6 +46,7 @@ export type RoomState = {
 
   guests: Player[];
   addGuest: (name: string) => void;
+  renameGuest: (id: string, name: string) => void;
   dropGuest: (id: string) => void;
 };
 
@@ -158,6 +161,10 @@ export function useRoom(code: string, name?: string): RoomState {
         joinedAt: Date.now(),
       },
     ]);
+  const renameGuest = (id: string, next: string) =>
+    setGuests((list) =>
+      list.map((g) => (g.id === id && cleanName(next) ? { ...g, name: cleanName(next) } : g))
+    );
   const dropGuest = (id: string) => setGuests((list) => list.filter((g) => g.id !== id));
 
   const nameOf = (id?: string) =>
@@ -173,6 +180,7 @@ export function useRoom(code: string, name?: string): RoomState {
     name: nameOf,
     guests,
     addGuest,
+    renameGuest,
     dropGuest,
   };
 }

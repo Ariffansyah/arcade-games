@@ -30,7 +30,7 @@ const GLYPHS = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 const restAt = (i: number, held: boolean) =>
   new THREE.Vector3((i - 2) * 1.7, 0.5, held ? 2.6 : -0.4);
 
-export default function Yacht({ code, players, me, name, follow }: GameProps) {
+export default function Yacht({ code, players, me, name, follow, roster }: GameProps) {
   const [table, send] = useTable<Game>(`yacht:${code}`, me.id);
   const mount = useRef<HTMLDivElement>(null);
   const view = useRef<{ sync: (y: Game) => void } | null>(null);
@@ -334,6 +334,7 @@ export default function Yacht({ code, players, me, name, follow }: GameProps) {
           </button>
         )}
 
+        {(!table || table.done) && roster}
         {isHost && (!table || table.done) && (
           <button
             onClick={start}

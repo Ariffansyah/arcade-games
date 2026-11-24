@@ -105,7 +105,7 @@ const STEPS: Record<string, number> = {
   ArrowDown: -3,
 };
 
-export default function Topple({ code, players, me, name, follow }: GameProps) {
+export default function Topple({ code, players, me, name, follow, roster }: GameProps) {
   const [saved, send] = useTable<Tower>(`topple:${code}`, me.id);
   // A table from the meter version of this game has no poses to stand on; deal a fresh tower.
   const table = saved?.poses ? saved : null;
@@ -702,6 +702,7 @@ export default function Topple({ code, players, me, name, follow }: GameProps) {
             Whoever is up left the room — skip them
           </button>
         )}
+        {(!table || table.loser) && roster}
         {isHost && (!table || table.loser) && (
           <button
             onClick={start}
